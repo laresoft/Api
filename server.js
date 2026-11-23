@@ -1,8 +1,10 @@
 const express = require('express');
-const sqlite3 = require('sqlite3');
+const { Pool } = require('pg');
 const cors = require('cors');
-const path = require('path');
 const os = require('os');
+
+require('dotenv').config();
+
 const app = express();
 // En la nube (Render) el puerto lo asigna la plataforma; en local usamos 3000
 const port = process.env.PORT || 3000;
@@ -11,46 +13,78 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Nunca servir archivos sensibles (serve-static ya ignora dotfiles, pero lo dejamos explícito)
+app.use((req, res, next) => {
+  if (/(^|\/)\.env(\.|$)|(^|\/)\.git(\/|$)|^\/android\//.test(req.path)) {
+    return res.status(404).end();
+  }
+  next();
+});
+
 // Servir el frontend (index.html, style.css, script.js) desde este mismo servidor
 app.use(express.static(__dirname));
 
-// Base de datos SQLite.
-// En la nube usamos DB_PATH (un disco persistente). En local, el archivo de siempre.
-const rutaBaseDeDatos = process.env.DB_PATH || path.join(__dirname, 'gastos.db');
-let db = new sqlite3.Database(rutaBaseDeDatos, (err) => {
-  if (err) {
-    console.error('Error opening database', err);
-    process.exit(1);
-  }
-  console.log('Conexión a la base de datos establecida');
+// Base de datos PostgreSQL (Supabase). La URL se lee del archivo .env / variable de entorno.
+if (!process.env.DATABASE_URL) {
+  console.error('ERROR: falta DATABASE_URL. Poné la cadena de Supabase en el archivo .env');
+  process.exit(1);
+}
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
 });
 
-// Inicializar la base de datos
-function inicializarDB() {
-  return new Promise((resolve, reject) => {
-    db.serialize(() => {
-      db.run(`
-        CREATE TABLE IF NOT EXISTS gastos (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          fecha TEXT NOT NULL,
-          categoria TEXT NOT NULL,
-          descripcion TEXT NOT NULL,
-          monto REAL NOT NULL CHECK(monto > 0),
-          tipo TEXT NOT NULL CHECK(tipo IN ('fijo', 'semifijo', 'ocasional'))
-        )
-      `);
+// Inicializar la base de datos (crea las tablas si no existen)
+async function inicializarDB() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS gastos (
+      id SERIAL PRIMARY KEY,
+      fecha TEXT NOT NULL,
+      categoria TEXT NOT NULL,
+      descripcion TEXT NOT NULL,
+      monto DOUBLE PRECISION NOT NULL CHECK (monto > 0),
+      tipo TEXT NOT NULL CHECK (tipo IN ('fijo', 'semifijo', 'ocasional'))
+    )
+  `);
 
-      db.run(`
-        CREATE TABLE IF NOT EXISTS ingresos (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          fecha TEXT NOT NULL,
-          descripcion TEXT NOT NULL,
-          monto REAL NOT NULL CHECK(monto > 0)
-        )
-      `);
-    });
-    resolve();
-  });
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ingresos (
+      id SERIAL PRIMARY KEY,
+      fecha TEXT NOT NULL,
+      descripcion TEXT NOT NULL,
+      monto DOUBLE PRECISION NOT NULL CHECK (monto > 0)
+    )
+  `);
+}
+
+// Validación de fecha compartida (local, nunca UTC; sin fechas futuras ni del mes anterior)
+function validarFecha(fecha, res) {
+  const fechaObj = new Date(fecha);
+  const hoy = new Date();
+
+  const fechaLocal = new Date(
+    hoy.getFullYear(),
+    hoy.getMonth(),
+    hoy.getDate()
+  );
+
+  if (fechaObj > fechaLocal) {
+    res.status(400).json({ error: 'No se puede ingresar una fecha posterior a la actual' });
+    return false;
+  }
+
+  const esMesAnterior =
+    fechaObj.getFullYear() < hoy.getFullYear() ||
+    (fechaObj.getFullYear() === hoy.getFullYear() &&
+      fechaObj.getMonth() < hoy.getMonth());
+
+  if (esMesAnterior) {
+    res.status(400).json({ error: 'No se puede ingresar datos del mes anterior' });
+    return false;
+  }
+
+  return true;
 }
 
 // Rutas para Gastos
@@ -64,31 +98,7 @@ app.post('/gastos', async (req, res) => {
     return res.status(400).json({ error: 'Todos los campos son obligatorios y el monto debe ser mayor a 0' });
   }
 
-  // Validación: fecha no puede ser posterior a la actual ni del mes anterior
-  const fechaObj = new Date(fecha);
-  const hoy = new Date();
-
-  // Usar fecha local, nunca UTC
-  const fechaLocal = new Date(
-    hoy.getFullYear(),
-    hoy.getMonth(),
-    hoy.getDate()
-  );
-
-  // Verificar que la fecha no sea posterior a hoy
-  if (fechaObj > fechaLocal) {
-    return res.status(400).json({ error: 'No se puede ingresar una fecha posterior a la actual' });
-  }
-
-  // Verificar que no sea del mes anterior (mismo día/mes pero año/anterior)
-  const esMesAnterior =
-    fechaObj.getFullYear() < hoy.getFullYear() ||
-    (fechaObj.getFullYear() === hoy.getFullYear() &&
-      fechaObj.getMonth() < hoy.getMonth());
-
-  if (esMesAnterior) {
-    return res.status(400).json({ error: 'No se puede ingresar datos del mes anterior' });
-  }
+  if (!validarFecha(fecha, res)) return;
 
   // Determinar el tipo de categoría
   const categoriasFijas = ['Vivienda', 'Seguros', 'Electricidad', 'Agua', 'Internet', 'Celular'];
@@ -106,56 +116,61 @@ app.post('/gastos', async (req, res) => {
     return res.status(400).json({ error: 'Categoría no válida' });
   }
 
-  const sql = `INSERT INTO gastos (fecha, categoria, descripcion, monto, tipo) VALUES (?, ?, ?, ?, ?)`;
-  db.run(sql, [fecha, categoria, descripcion, monto, tipo], function (err) {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    res.json({ id: this.lastId, mensaje: 'Gasto registrado correctamente' });
-  });
+  try {
+    const resultado = await pool.query(
+      `INSERT INTO gastos (fecha, categoria, descripcion, monto, tipo)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [fecha, categoria, descripcion, monto, tipo]
+    );
+
+    res.json({ id: resultado.rows[0].id, mensaje: 'Gasto registrado correctamente' });
+  } catch (error) {
+    console.error('Error al registrar gasto:', error.message);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // 2. Eliminar un gasto
-app.delete('/gastos/:id', (req, res) => {
-  const { id } = req.params;
-  const sql = `DELETE FROM gastos WHERE id = ?`;
-  db.run(sql, [id], function (err) {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (this.changes === 0) {
+app.delete('/gastos/:id', async (req, res) => {
+  try {
+    const resultado = await pool.query('DELETE FROM gastos WHERE id = $1 RETURNING id', [req.params.id]);
+
+    if (resultado.rowCount === 0) {
       return res.status(404).json({ error: 'Gasto no encontrado' });
     }
+
     res.json({ mensaje: 'Gasto eliminado correctamente' });
-  });
+  } catch (error) {
+    console.error('Error al eliminar gasto:', error.message);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // 3. Listar gastos por fecha o mes
-app.get('/gastos', (req, res) => {
+app.get('/gastos', async (req, res) => {
   const { fecha, mes } = req.query;
-  let sql = `SELECT * FROM gastos WHERE 1=1`;
-  let params = [];
+  let sql = 'SELECT * FROM gastos WHERE 1=1';
+  const params = [];
 
   if (fecha) {
-    // Filtrar por fecha exacta (YYYY-MM-DD)
-    sql += ` AND fecha = ?`;
     params.push(fecha);
+    sql += ` AND fecha = $${params.length}`;
   }
 
   if (mes) {
-    // Filtrar por mes (YYYY-MM)
-    sql += ` AND fecha LIKE ?`;
     params.push(`${mes}%`);
+    sql += ` AND fecha LIKE $${params.length}`;
   }
 
-  sql += ` ORDER BY fecha DESC`;
+  sql += ' ORDER BY fecha DESC, id DESC';
 
-  db.all(sql, params, (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    res.json(rows);
-  });
+  try {
+    const resultado = await pool.query(sql, params);
+    res.json(resultado.rows);
+  } catch (error) {
+    console.error('Error al listar gastos:', error.message);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Rutas para Ingresos
@@ -164,123 +179,96 @@ app.get('/gastos', (req, res) => {
 app.post('/ingresos', async (req, res) => {
   const { fecha, descripcion, monto } = req.body;
 
-  // Validación: todos los campos obligatorios
   if (!fecha || !descripcion || monto === undefined || monto <= 0) {
     return res.status(400).json({ error: 'Todos los campos son obligatorios y el monto debe ser mayor a 0' });
   }
 
-  // Validación: fecha no puede ser posterior a la actual
-  const fechaObj = new Date(fecha);
-  const hoy = new Date();
+  if (!validarFecha(fecha, res)) return;
 
-  // Usar fecha local, nunca UTC
-  const fechaLocal = new Date(
-    hoy.getFullYear(),
-    hoy.getMonth(),
-    hoy.getDate()
-  );
+  try {
+    const resultado = await pool.query(
+      `INSERT INTO ingresos (fecha, descripcion, monto)
+       VALUES ($1, $2, $3) RETURNING id`,
+      [fecha, descripcion, monto]
+    );
 
-  // Verificar que la fecha no sea posterior a hoy
-  if (fechaObj > fechaLocal) {
-    return res.status(400).json({ error: 'No se puede ingresar una fecha posterior a la actual' });
+    res.json({ id: resultado.rows[0].id, mensaje: 'Ingreso registrado correctamente' });
+  } catch (error) {
+    console.error('Error al registrar ingreso:', error.message);
+    res.status(500).json({ error: error.message });
   }
-
-  // Verificar que no sea del mes anterior
-  const esMesAnterior =
-    fechaObj.getFullYear() < hoy.getFullYear() ||
-    (fechaObj.getFullYear() === hoy.getFullYear() &&
-      fechaObj.getMonth() < hoy.getMonth());
-
-  if (esMesAnterior) {
-    return res.status(400).json({ error: 'No se puede ingresar datos del mes anterior' });
-  }
-
-  const sql = `INSERT INTO ingresos (fecha, descripcion, monto) VALUES (?, ?, ?)`;
-  db.run(sql, [fecha, descripcion, monto], function (err) {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    res.json({ id: this.lastId, mensaje: 'Ingreso registrado correctamente' });
-  });
 });
 
 // 4b. Listar ingresos por fecha o mes
-app.get('/ingresos', (req, res) => {
+app.get('/ingresos', async (req, res) => {
   const { fecha, mes } = req.query;
-  let sql = `SELECT * FROM ingresos WHERE 1=1`;
-  let params = [];
+  let sql = 'SELECT * FROM ingresos WHERE 1=1';
+  const params = [];
 
   if (fecha) {
-    sql += ` AND fecha = ?`;
     params.push(fecha);
+    sql += ` AND fecha = $${params.length}`;
   }
 
   if (mes) {
-    sql += ` AND fecha LIKE ?`;
     params.push(`${mes}%`);
+    sql += ` AND fecha LIKE $${params.length}`;
   }
 
-  sql += ` ORDER BY fecha DESC`;
+  sql += ' ORDER BY fecha DESC, id DESC';
 
-  db.all(sql, params, (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    res.json(rows);
-  });
+  try {
+    const resultado = await pool.query(sql, params);
+    res.json(resultado.rows);
+  } catch (error) {
+    console.error('Error al listar ingresos:', error.message);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // 4c. Eliminar un ingreso
-app.delete('/ingresos/:id', (req, res) => {
-  const { id } = req.params;
-  const sql = `DELETE FROM ingresos WHERE id = ?`;
-  db.run(sql, [id], function (err) {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (this.changes === 0) {
+app.delete('/ingresos/:id', async (req, res) => {
+  try {
+    const resultado = await pool.query('DELETE FROM ingresos WHERE id = $1 RETURNING id', [req.params.id]);
+
+    if (resultado.rowCount === 0) {
       return res.status(404).json({ error: 'Ingreso no encontrado' });
     }
+
     res.json({ mensaje: 'Ingreso eliminado correctamente' });
-  });
+  } catch (error) {
+    console.error('Error al eliminar ingreso:', error.message);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // 5. Balance en el mes
-app.get('/balance', (req, res) => {
+app.get('/balance', async (req, res) => {
   const { mes } = req.query;
-
-  let sqlGastos = `SELECT COALESCE(SUM(monto), 0) as totalGastos FROM gastos`;
-  let sqlIngresos = `SELECT COALESCE(SUM(monto), 0) as totalIngresos FROM ingresos`;
-  let params = [];
+  const params = [];
+  let where = '';
 
   if (mes) {
-    sqlGastos += ` WHERE fecha LIKE ?`;
-    sqlIngresos += ` WHERE fecha LIKE ?`;
     params.push(`${mes}%`);
+    where = ' WHERE fecha LIKE $1';
   }
 
-  db.get(sqlGastos, params, (err, rowGastos) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
+  try {
+    // Los alias van entre comillas para que Postgres respete mayúsculas/minúsculas
+    const [resultadoGastos, resultadoIngresos] = await Promise.all([
+      pool.query(`SELECT COALESCE(SUM(monto), 0) AS "totalGastos" FROM gastos${where}`, params),
+      pool.query(`SELECT COALESCE(SUM(monto), 0) AS "totalIngresos" FROM ingresos${where}`, params)
+    ]);
 
-    db.get(sqlIngresos, params, (err, rowIngresos) => {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
+    const totalGastos = Number(resultadoGastos.rows[0].totalGastos);
+    const totalIngresos = Number(resultadoIngresos.rows[0].totalIngresos);
+    const balance = totalIngresos - totalGastos;
 
-      const totalGastos = rowGastos.totalGastos;
-      const totalIngresos = rowIngresos.totalIngresos;
-      const balance = totalIngresos - totalGastos;
-
-      res.json({
-        mes,
-        totalIngresos,
-        totalGastos,
-        balance
-      });
-    });
-  });
+    res.json({ mes, totalIngresos, totalGastos, balance });
+  } catch (error) {
+    console.error('Error calculando balance:', error.message);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Obtener las direcciones IP locales de la computadora
@@ -299,25 +287,30 @@ function obtenerIPsLocales() {
 }
 
 // Inicializar y empezar el servidor
-inicializarDB().then(() => {
-  // Escuchar en todas las interfaces para que el celular pueda conectarse
-  app.listen(port, '0.0.0.0', () => {
-    console.log('=============================================');
-    console.log('  CUENTAS - API y frontend funcionando');
-    console.log('=============================================');
-    console.log(`  Base de datos: ${rutaBaseDeDatos}`);
+inicializarDB()
+  .then(() => {
+    app.listen(port, '0.0.0.0', () => {
+      console.log('=============================================');
+      console.log('  CUENTAS - API y frontend funcionando');
+      console.log('=============================================');
+      console.log('  Base de datos: PostgreSQL (Supabase)');
 
-    if (process.env.RENDER) {
-      console.log('  Modo nube: accesible desde la URL que te da Render');
-    } else {
-      console.log(`  En esta computadora: http://localhost:${port}`);
-      const ips = obtenerIPsLocales();
-      if (ips.length > 0) {
-        ips.forEach(ip => {
-          console.log(`  En el celular (mismo WiFi): http://${ip}:${port}`);
-        });
+      if (process.env.RENDER) {
+        console.log('  Modo nube: accesible desde la URL que te da Render');
+      } else {
+        console.log(`  En esta computadora: http://localhost:${port}`);
+        const ips = obtenerIPsLocales();
+        if (ips.length > 0) {
+          ips.forEach(ip => {
+            console.log(`  En el celular (mismo WiFi): http://${ip}:${port}`);
+          });
+        }
       }
-    }
-    console.log('=============================================');
+      console.log('=============================================');
+    });
+  })
+  .catch((error) => {
+    console.error('No se pudo conectar a la base de datos:', error.message);
+    console.error('Revisá la DATABASE_URL en tu archivo .env');
+    process.exit(1);
   });
-});

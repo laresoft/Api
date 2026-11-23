@@ -1,10 +1,20 @@
 # Dependencias (se reinstalan con npm install en cada máquina)
 node_modules/
 
-# Base de datos local (cada entorno genera la suya)
+# CLAVES: nunca subir la cadena de conexión a GitHub
+.env
+.env.*
+!.env.example
+
+# Base de datos local antigua (ya no se usa, reemplazada por Supabase)
 gastos.db
 gastos.db-wal
 gastos.db-shm
+
+# APKs y proyecto Android generado (se regeneran cuando haga falta)
+*.apk
+android/
+www/
 
 # Archivos del sistema
 .DS_Store

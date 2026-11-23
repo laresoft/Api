@@ -2,101 +2,110 @@
 
 App para registrar gastos e ingresos. Funciona en el celular y en cualquier dispositivo con internet.
 
-**Tecnología:** Node.js + Express + SQLite. El mismo servidor sirve la API y la interfaz.
+**Tecnología:** Node.js + Express + PostgreSQL (plan gratis de Supabase). El mismo servidor sirve la API y la interfaz.
+
+**Costo: $0** — Render Free + Supabase Free.
 
 ---
 
-## Desplegar en la nube (accesible desde cualquier lugar)
+## 1. Crear la base de datos en Supabase (gratis)
 
-### Antes de empezar
+1. Entrá a https://supabase.com y creá cuenta (**Continue with GitHub** es lo más rápido).
+2. **New project**:
+   - Name: `cuentas`
+   - Database Password: generala y guardala
+   - Region: la más cercana a ti
+   - Plan: **Free**
+3. Cuando el proyecto esté listo, arriba a la derecha clic en **Connect** (o en **⚙️ Project Settings → Database → Connection string**).
+4. Elegí **Session pooler** y copiá la URI. Reemplazá `[YOUR-PASSWORD]` por tu contraseña de base de datos y asegurate de que termine con `?sslmode=require`.
 
-Necesitas:
-- Una cuenta de **GitHub** (gratis): https://github.com
-- Una cuenta de **Render** (gratis): https://render.com
-- El proyecto ya está preparado con `render.yaml`, `.gitignore` y `package.json`
+> La cadena se parece a:
+> ```
+> postgresql://postgres.TU_REF:TU_CLAVE@aws-0-TU_REGION.pooler.supabase.com:5432/postgres?sslmode=require
+> ```
+> Si la clave tiene caracteres especiales (`@ # & ?` / espacios), codificalos (por ejemplo `@` → `%40`).
 
-> **Importante sobre los datos:** Render tiene un plan Free, pero su sistema de archivos es temporal: la base de datos SQLite se borraría cada vez que el servicio se reinicia (y el plan Free se apaga solo después de 15 minutos de inactividad). Para que los gastos no se pierdan, el blueprint usa el plan **Starter** (~USD 7/mes) con un **disco persistente** de 1 GB (~USD 0,25/mes). No se suben tus datos actuales: la base en la nube empieza vacía.
+---
 
-### Paso 1 — Subir el código a GitHub
+## 2. Configurar y probar en local
 
-1. Crea un repositorio nuevo en GitHub (puede ser privado).
-2. En tu computadora, abre una terminal en la carpeta del proyecto y ejecuta:
+1. Copiá `.env.example` como `.env` y pegá tu cadena:
+   ```bash
+   cp .env.example .env
+   # editá .env y reemplazá el valor de DATABASE_URL
+   ```
+2. Instalá dependencias y arrancá:
+   ```bash
+   npm install
+   npm start
+   ```
+3. Abrí http://localhost:3000
+
+> `.env` está en `.gitignore`: **nunca** se sube a GitHub.
+
+---
+
+## 3. Desplegar en Render (gratis)
+
+1. Creá un repositorio en GitHub (puede ser privado).
+2. Subí el código:
+   ```bash
+   git init
+   git add .
+   git commit -m "Cuentas con Supabase"
+   git branch -M main
+   git remote add origin https://github.com/TU_USUARIO/TU_REPO.git
+   git push -u origin main
+   ```
+   Verificá antes que `.env` no aparezca en `git status`.
+3. En https://dashboard.render.com → **New → Blueprint** → conectá GitHub → elegí el repo.
+4. Render detecta `render.yaml`. Cuando te pida `DATABASE_URL`, pegá **la misma cadena** del paso 1 → **Apply**.
+5. En unos minutos te da la URL:
+   ```
+   https://cuentas-xxxx.onrender.com
+   ```
+
+Abrila desde el celular o desde una PC con Windows: no hay que instalar nada, solo un navegador.
+
+Cada `git push` actualiza la app automáticamente.
+
+---
+
+## 4. APK para el celular (opcional)
+
+La PWA ya está preparada (`manifest.webmanifest`, `sw.js`, iconos). Con Capacitor se genera el APK:
 
 ```bash
-cd /home/lester/Project/Api
-
-git init
-git add .
-git commit -m "Primera versión de Cuentas"
-git branch -M main
-git remote add origin https://github.com/TU_USUARIO/TU_REPO.git
-git push -u origin main
-```
-
-Si estás en **Windows**, abre PowerShell en la carpeta del proyecto y usa los mismos comandos (el `cd` cambia, por ejemplo `cd C:\Users\TuNombre\Project\Api`).
-
-> Verifica que `gastos.db` y `node_modules/` **no** se suban: ya están excluidos en `.gitignore`.
-
-### Paso 2 — Crear el servicio en Render
-
-1. Entra a https://dashboard.render.com
-2. **New → Blueprint**
-3. Conecta tu cuenta de GitHub y elige el repositorio que acabas de subir.
-4. Render detectará automáticamente `render.yaml` y mostrará el servicio `cuentas` con su disco.
-5. Haz clic en **Apply** y espera unos minutos a que termine el build.
-
-### Paso 3 — Usar la app
-
-Cuando el deploy termine, Render te dará una URL así:
-
-```
-https://cuentas-xxxx.onrender.com
-```
-
-Ábrela desde el celular, la PC de Windows o cualquier dispositivo con internet. La interfaz y la API están en esa misma dirección.
-
-Cada vez que hagas `git push`, Render actualiza la app automáticamente.
-
----
-
-## Ejecutar en local (opcional)
-
-### Windows
-
-1. Instala Node.js desde https://nodejs.org (versión 22 o superior).
-2. Copia la carpeta del proyecto (sin `node_modules` ni `gastos.db`).
-3. Abre PowerShell en esa carpeta y ejecuta:
-
-```powershell
 npm install
-npm start
+npx cap add android
+# editar capacitor.config.json con la URL de Render y cleartext: false
+npx cap sync
+cd android && ./gradlew assembleDebug
 ```
 
-4. Abre `http://localhost:3000`. Para entrar desde el celular, usa la IP que muestra la terminal (misma WiFi).
-
-### Linux / macOS
-
-```bash
-npm install
-npm start
-```
+El APK queda en `android/app/build/outputs/apk/debug/app-debug.apk`. Requiere JDK 21 y Android SDK instalados.
 
 ---
 
-## Alternativa 100% gratuita (más pasos)
+## Limitaciones del plan gratuito
 
-Si no quieres pagar el plan Starter, la opción gratuita es cambiar SQLite por **Postgres gratis de Supabase**:
-
-1. Crear un proyecto en https://supabase.com (plan free, no expira).
-2. Instalar el paquete `pg` y adaptar `server.js` para conectarse con `DATABASE_URL`.
-3. Usar el plan Free de Render para la app (sin disco).
-
-No está implementado porque agrega complejidad. Si te interesa, se puede hacer en una siguiente versión.
+- **Render Free** se duerme tras 15 minutos sin visitas; la primera carga después de eso tarda ~1 minuto.
+- **Supabase Free** pausa el proyecto tras 7 días con poca actividad. Unos pocos registros por semana lo evitan. Si se pausa, se reactiva desde el dashboard y los datos se conservan.
+- Supabase Free **no incluye backups automáticos**. Si los datos te importan, exportalos de vez en cuando desde el dashboard.
 
 ---
 
-## Cambios preparados para la nube
+## Endpoints
 
-- `server.js`: usa `process.env.PORT` y `process.env.DB_PATH`
-- `render.yaml`: define el servicio, el disco persistente y las variables de entorno
-- `.gitignore`: excluye dependencias y datos locales
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/` | Interfaz web |
+| `POST` | `/gastos` | Registrar gasto |
+| `GET` | `/gastos?fecha=YYYY-MM-DD` | Gastos de un día |
+| `GET` | `/gastos?mes=YYYY-MM` | Gastos de un mes |
+| `DELETE` | `/gastos/:id` | Eliminar gasto |
+| `POST` | `/ingresos` | Registrar ingreso |
+| `GET` | `/ingresos?fecha=YYYY-MM-DD` | Ingresos de un día |
+| `GET` | `/ingresos?mes=YYYY-MM` | Ingresos de un mes |
+| `DELETE` | `/ingresos/:id` | Eliminar ingreso |
+| `GET` | `/balance?mes=YYYY-MM` | Ingresos, gastos y balance del mes |

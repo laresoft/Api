@@ -366,6 +366,15 @@ function calcularBalance() {
 // También recalcular automáticamente al cambiar el mes del balance
 mesBalance.addEventListener('change', calcularBalance);
 
+// Registrar el service worker (solo funciona en HTTPS o localhost)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(err =>
+      console.log('Service worker no disponible:', err)
+    );
+  });
+}
+
 // Al iniciar: dejar todo listo con la fecha local de hoy
 document.addEventListener('DOMContentLoaded', () => {
   const hoy = fechaLocalISO();

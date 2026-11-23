@@ -1,13 +1,11 @@
-# Blueprint para desplegar "Cuentas" en Render
-# La documentación completa está en README.md
+# Blueprint para desplegar "Cuentas" en Render (plan gratis)
+# La base de datos es PostgreSQL gratis de Supabase (no hace falta disco).
 
 services:
   - type: web
     name: cuentas
     runtime: node
-    # El plan Free NO permite discos persistentes y borraría la base de datos
-    # al reiniciar. Por eso usamos el plan Starter (de pago).
-    plan: starter
+    plan: free
     region: oregon
     buildCommand: npm install
     startCommand: npm start
@@ -15,10 +13,7 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
-      # La base de datos se guarda en el disco persistente montado abajo
-      - key: DB_PATH
-        value: /var/data/gastos.db
-    disk:
-      name: cuentas-datos
-      mountPath: /var/data
-      sizeGB: 1
+      # Render te va a pedir el valor al crear el servicio (sync: false).
+      # Pegá la misma DATABASE_URL que usás en tu .env local.
+      - key: DATABASE_URL
+        sync: false

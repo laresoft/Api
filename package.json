@@ -1,7 +1,7 @@
 {
   "name": "cuentas",
   "version": "1.0.0",
-  "description": "App para registrar gastos e ingresos con API Node.js y SQLite",
+  "description": "App para registrar gastos e ingresos con API Node.js y PostgreSQL (Supabase)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -15,7 +15,13 @@
   "type": "commonjs",
   "dependencies": {
     "cors": "^2.8.6",
+    "dotenv": "^18.0.10",
     "express": "^5.3.0",
-    "sqlite3": "^6.0.1"
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
+    "@capacitor/core": "^8.6.2"
   }
 }
