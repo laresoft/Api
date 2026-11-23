@@ -1,0 +1,245 @@
+/* Estilos principales para móvil - diseño limpio y moderno */
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  margin: 0;
+  padding: 20px;
+  background: #f5f7fa;
+  color: #333;
+  line-height: 1.6;
+}
+
+header {
+  text-align: center;
+  padding: 20px 0;
+  background: #2c3e50;
+  color: white;
+  margin: -20px -20px 20px;
+  border-radius: 0 0 12px 12px;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+main {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+section {
+  background: white;
+  padding: 20px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+section h2 {
+  margin-top: 0;
+  color: #2c3e50;
+  border-bottom: 2px #e0e0e0 solid;
+  padding-bottom: 8px;
+  font-size: 1.2rem;
+}
+
+.campo {
+  margin-bottom: 15px;
+}
+
+.campo label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: #555;
+}
+
+.campo input,
+.campo select,
+.campo textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+  font-size: 1rem;
+}
+
+.campo input:focus,
+.campo select:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 4px rgba(52, 152, 219, 0.3);
+}
+
+/* Selects con opciones readonly estilo lista */
+input[readonly] {
+  background-color: #f8f9fa;
+  color: #666;
+}
+
+/* Optgroup styling */
+optgroup {
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+/* Botones */
+button {
+  width: 100%;
+  padding: 10px;
+  background: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+button:hover {
+  background: #219150;
+}
+
+button:disabled {
+  background: #95a5a6;
+  cursor: not-allowed;
+}
+
+/* Selector segmentado Por día / Por mes */
+.segmentado {
+  display: flex;
+  margin-bottom: 15px;
+  border: 2px solid #3498db;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.segmentado label {
+  flex: 1;
+  cursor: pointer;
+}
+
+.segmentado input {
+  display: none;
+}
+
+.segmentado span {
+  display: block;
+  padding: 10px 5px;
+  text-align: center;
+  color: #3498db;
+  background: white;
+  font-weight: 500;
+  transition: background 0.2s, color 0.2s;
+}
+
+.segmentado input:checked + span {
+  background: #3498db;
+  color: white;
+}
+
+/* Clase para ocultar campos según el modo elegido */
+.oculto {
+  display: none !important;
+}
+
+/* Resumen del total mensual */
+.resumen-mes {
+  padding: 10px;
+  margin-bottom: 10px;
+  background: #e8f6f3;
+  border-left: 4px solid #1abc9c;
+  border-radius: 4px;
+  color: #1a6273;
+}
+
+/* Balance en tarjetas horizontales */
+.balance-tarjetas {
+  display: flex;
+  gap: 8px;
+  margin-top: 15px;
+}
+
+.balance-tarjeta {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 6px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.balance-tarjeta .etiqueta {
+  display: block;
+  font-size: 0.75rem;
+  color: #777;
+  margin-bottom: 4px;
+}
+
+.balance-tarjeta strong {
+  display: block;
+  font-size: clamp(0.8rem, 3.5vw, 1.1rem);
+  white-space: nowrap;
+}
+
+.balance-tarjeta small {
+  display: block;
+  font-size: 0.7rem;
+  margin-top: 4px;
+}
+
+.balance-tarjeta.ingreso strong { color: #27ae60; }
+.balance-tarjeta.gasto strong { color: #e74c3c; }
+.balance-tarjeta.total { background: #e8f6f3; }
+.balance-tarjeta.total.positivo strong { color: #1a6273; }
+.balance-tarjeta.total.negativo { background: #fdedec; }
+.balance-tarjeta.total.negativo strong { color: #c0392b; }
+
+/* Resultados */
+#resultado-gastos, #resultado-ingresos, #resultado-balance {
+  margin-top: 15px;
+  padding: 10px;
+  background: #ecf0f1;
+  border-radius: 4px;
+}
+
+/* Fila de gasto o ingreso con botón de eliminar */
+.item-gasto, .item-ingreso {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  margin-bottom: 6px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: inherit;
+  white-space: normal;
+}
+
+.item-ingreso {
+  border-left: 4px solid #27ae60;
+}
+
+.btn-eliminar {
+  width: auto;
+  padding: 6px 10px;
+  margin: 0;
+  background: #e74c3c;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.btn-eliminar:hover {
+  background: #c0392b;
+}
+
+/* Est responsive */
+@media (min-width: 600px) {
+  body {
+    padding: 40px;
+  }
+}

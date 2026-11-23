@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de Gastos e Ingresos</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>💰 Control de Gastos e Ingresos</h1>
+  </header>
+
+  <main>
+    <!-- Sección: Registrar Gasto -->
+    <section id="registrar-gasto">
+      <h2>Registrar Gasto</h2>
+      <form id="form-gasto">
+        <div class="campo">
+          <label for="fecha-gasto">Fecha:</label>
+          <input type="date" id="fecha-gasto" name="fecha" required>
+        </div>
+        <div class="campo">
+          <label for="categoria-gasto">Categoría:</label>
+          <select id="categoria-gasto" name="categoria">
+            <option value="">Seleccione una categoría</option>
+            <optgroup label="Gastos Fijos">
+              <option value="Vivienda">Vivienda</option>
+              <option value="Seguros">Seguros</option>
+              <option value="Electricidad">Electricidad</option>
+              <option value="Agua">Agua</option>
+              <option value="Internet">Internet</option>
+              <option value="Celular">Celular</option>
+            </optgroup>
+            <optgroup label="Gastos Semifijos">
+              <option value="Alimentación">Alimentación</option>
+              <option value="Transporte">Transporte</option>
+              <option value="Salud">Salud</option>
+              <option value="Higiene">Higiene</option>
+            </optgroup>
+            <optgroup label="Gastos Ocasionales">
+              <option value="Salidas">Salidas</option>
+              <option value="Entretenimiento">Entretenimiento</option>
+              <option value="Ahorro">Ahorro</option>
+              <option value="Fondo Emergencia">Fondo Emergencia</option>
+              <option value="Ropa">Ropa</option>
+              <option value="Zapatos">Zapatos</option>
+              <option value="Otros">Otros</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="descripcion-gasto">Descripción:</label>
+          <input type="text" id="descripcion-gasto" name="descripcion" placeholder="Se llena al elegir categoría, pero puedes editarlo" required>
+        </div>
+        <div class="campo">
+          <label for="monto-gasto">Monto:</label>
+          <input type="number" id="monto-gasto" name="monto" min="1" required>
+        </div>
+        <button type="submit">Guardar Gasto</button>
+      </form>
+    </section>
+
+    <!-- Sección: Lista de Gastos -->
+    <section id="lista-gastos">
+      <h2>Lista de Gastos</h2>
+
+      <div class="segmentado">
+        <label>
+          <input type="radio" name="modo-lista" id="modo-fecha" value="fecha" checked>
+          <span>📅 Por día</span>
+        </label>
+        <label>
+          <input type="radio" name="modo-lista" id="modo-mes" value="mes">
+          <span>🗓️ Por mes</span>
+        </label>
+      </div>
+
+      <div class="campo" id="campo-fecha">
+        <label for="fecha-lista">Elige un día:</label>
+        <input type="date" id="fecha-lista" name="fecha">
+      </div>
+
+      <div class="campo oculto" id="campo-mes">
+        <label for="mes-lista">Elige un mes:</label>
+        <input type="month" id="mes-lista" name="mes">
+      </div>
+
+      <div id="resultado-gastos"></div>
+    </section>
+
+    <!-- Sección: Registrar Ingreso -->
+    <section id="registrar-ingreso">
+      <h2>Registrar Ingreso</h2>
+      <form id="form-ingreso">
+        <div class="campo">
+          <label for="fecha-ingreso">Fecha:</label>
+          <input type="date" id="fecha-ingreso" name="fecha" required>
+        </div>
+        <div class="campo">
+          <label for="descripcion-ingreso">Descripción:</label>
+          <input type="text" id="descripcion-ingreso" name="descripcion" required>
+        </div>
+        <div class="campo">
+          <label for="monto-ingreso">Monto:</label>
+          <input type="number" id="monto-ingreso" name="monto" min="1" required>
+        </div>
+        <button type="submit">Guardar Ingreso</button>
+      </form>
+    </section>
+
+    <!-- Sección: Lista de Ingresos -->
+    <section id="lista-ingresos">
+      <h2>Lista de Ingresos</h2>
+
+      <div class="segmentado">
+        <label>
+          <input type="radio" name="modo-ingresos" id="modo-ingreso-fecha" value="fecha" checked>
+          <span>📅 Por día</span>
+        </label>
+        <label>
+          <input type="radio" name="modo-ingresos" id="modo-ingreso-mes" value="mes">
+          <span>🗓️ Por mes</span>
+        </label>
+      </div>
+
+      <div class="campo" id="campo-ingreso-fecha">
+        <label for="fecha-lista-ingreso">Elige un día:</label>
+        <input type="date" id="fecha-lista-ingreso" name="fecha">
+      </div>
+
+      <div class="campo oculto" id="campo-ingreso-mes">
+        <label for="mes-lista-ingreso">Elige un mes:</label>
+        <input type="month" id="mes-lista-ingreso" name="mes">
+      </div>
+
+      <div id="resultado-ingresos"></div>
+    </section>
+
+    <!-- Sección: Balance -->
+    <section id="balance">
+      <h2>Balance del Mes</h2>
+      <div class="campo">
+        <label for="mes-balance">Elige un mes:</label>
+        <input type="month" id="mes-balance" name="mes">
+      </div>
+      <div id="resultado-balance"></div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

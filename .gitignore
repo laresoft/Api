@@ -1,0 +1,15 @@
+# Dependencias (se reinstalan con npm install en cada máquina)
+node_modules/
+
+# Base de datos local (cada entorno genera la suya)
+gastos.db
+gastos.db-wal
+gastos.db-shm
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
