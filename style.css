@@ -237,6 +237,58 @@ button:disabled {
   background: #c0392b;
 }
 
+/* --- Acceso: iniciar sesión / registrar cuenta --- */
+#auth {
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.tarjeta-auth {
+  text-align: left;
+}
+
+.auth-mensaje {
+  min-height: 1.5em;
+  margin: 10px 0 0;
+  text-align: center;
+  color: #c0392b;
+  font-size: 0.9rem;
+}
+
+.btn-secundario {
+  margin-top: 10px;
+  background: transparent;
+  color: #3498db;
+  border: 2px solid #3498db;
+}
+
+.btn-secundario:hover {
+  background: #eaf4fb;
+  color: #217dbb;
+}
+
+/* Barra del usuario dentro del encabezado */
+#barra-usuario {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 0.85rem;
+}
+
+.btn-cerrar {
+  width: auto;
+  padding: 5px 10px;
+  background: #e74c3c;
+  font-size: 0.8rem;
+}
+
+.btn-cerrar:hover {
+  background: #c0392b;
+}
+
 /* Est responsive */
 @media (min-width: 600px) {
   body {

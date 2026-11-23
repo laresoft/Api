@@ -2,6 +2,8 @@ const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
 const os = require('os');
+const crypto = require('crypto');
+const { promisify } = require('util');
 
 require('dotenv').config();
 
@@ -9,15 +11,22 @@ const app = express();
 // En la nube (Render) el puerto lo asigna la plataforma; en local usamos 3000
 const port = process.env.PORT || 3000;
 
-// Middleware
+// middlewares
 app.use(cors());
 app.use(express.json());
 
-// Nunca servir archivos sensibles (serve-static ya ignora dotfiles, pero lo dejamos explícito)
+// Nunca servir archivos sensibles ni el código del servidor
 app.use((req, res, next) => {
-  if (/(^|\/)\.env(\.|$)|(^|\/)\.git(\/|$)|^\/android\//.test(req.path)) {
-    return res.status(404).end();
-  }
+  const ruta = req.path.toLowerCase();
+  const sensible =
+    ruta.startsWith('/.env') ||
+    ruta.startsWith('/.git') ||
+    ruta.startsWith('/android/') ||
+    ruta.endsWith('.apk') ||
+    ruta === '/qr-cuentas.png' ||
+    ['/server.js', '/package.json', '/package-lock.json', '/readme.md', '/render.yaml'].includes(ruta);
+
+  if (sensible) return res.status(404).end();
   next();
 });
 
@@ -30,54 +39,142 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
+// Clave para firmar los tokens de sesión (nunca se sube a GitHub)
+const CLAVE_SESION = process.env.JWT_SECRET;
+if (!CLAVE_SESION) {
+  console.error('ERROR: falta JWT_SECRET. Generá una clave con: openssl rand -hex 32');
+  process.exit(1);
+}
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
+const scrypt = promisify(crypto.scrypt);
+const DURACION_SESION = 60 * 60 * 24 * 30; // 30 días, en segundos
+
+// --- Contraseñas y tokens (usamos solo crypto, sin dependencias extra) ---
+
+async function hashearContrasena(contrasena) {
+  const sal = crypto.randomBytes(16).toString('hex');
+  const derivada = await scrypt(contrasena, sal, 64);
+  return `${sal}:${derivada.toString('hex')}`;
+}
+
+async function verificarContrasena(contrasena, guardada) {
+  const [sal, hex] = String(guardada).split(':');
+  if (!sal || !hex) return false;
+  const derivada = await scrypt(contrasena, sal, 64);
+  const esperada = Buffer.from(hex, 'hex');
+  return derivada.length === esperada.length && crypto.timingSafeEqual(derivada, esperada);
+}
+
+function crearToken(usuario) {
+  const ahora = Math.floor(Date.now() / 1000);
+  const cuerpo = Buffer.from(JSON.stringify({
+    sub: usuario.id,
+    email: usuario.email,
+    iat: ahora,
+    exp: ahora + DURACION_SESION
+  })).toString('base64url');
+
+  const firma = crypto.createHmac('sha256', CLAVE_SESION).update(cuerpo).digest('base64url');
+  return `${cuerpo}.${firma}`;
+}
+
+function leerToken(token) {
+  if (typeof token !== 'string') return null;
+  const partes = token.split('.');
+  if (partes.length !== 2) return null;
+
+  const [cuerpo, firma] = partes;
+  const esperada = crypto.createHmac('sha256', CLAVE_SESION).update(cuerpo).digest('base64url');
+  const recibida = Buffer.from(firma);
+  const correcta = Buffer.from(esperada);
+
+  if (recibida.length !== correcta.length || !crypto.timingSafeEqual(recibida, correcta)) return null;
+
+  try {
+    const datos = JSON.parse(Buffer.from(cuerpo, 'base64url').toString('utf8'));
+    if (!datos.sub || !datos.exp || datos.exp < Math.floor(Date.now() / 1000)) return null;
+    return datos;
+  } catch (error) {
+    return null;
+  }
+}
+
+// Middleware: exige un token válido en todas las rutas de datos
+function requerirAuth(req, res, next) {
+  const cabecera = req.headers.authorization || '';
+  const token = cabecera.startsWith('Bearer ') ? cabecera.slice(7) : null;
+  const datos = leerToken(token);
+
+  if (!datos) {
+    return res.status(401).json({ error: 'Sesión expirada o no válida. Iniciá sesión nuevamente.' });
+  }
+
+  req.usuario = { id: datos.sub, email: datos.email };
+  next();
+}
+
 // Inicializar la base de datos (crea las tablas si no existen)
 async function inicializarDB() {
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS gastos (
+    CREATE TABLE IF NOT EXISTS usuarios (
       id SERIAL PRIMARY KEY,
-      fecha TEXT NOT NULL,
-      categoria TEXT NOT NULL,
-      descripcion TEXT NOT NULL,
-      monto DOUBLE PRECISION NOT NULL CHECK (monto > 0),
-      tipo TEXT NOT NULL CHECK (tipo IN ('fijo', 'semifijo', 'ocasional'))
+      email TEXT NOT NULL UNIQUE,
+      nombre TEXT,
+      password_hash TEXT NOT NULL,
+      creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
 
+  // Las tablas ya existían sin usuario: agregamos la columna sin borrar los registros.
+  // Los registros sin usuario se asignan a la primera cuenta que se cree (ver /registro).
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS ingresos (
-      id SERIAL PRIMARY KEY,
-      fecha TEXT NOT NULL,
-      descripcion TEXT NOT NULL,
-      monto DOUBLE PRECISION NOT NULL CHECK (monto > 0)
-    )
+    ALTER TABLE gastos
+    ADD COLUMN IF NOT EXISTS usuario_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE
   `);
+  await pool.query(`
+    ALTER TABLE ingresos
+    ADD COLUMN IF NOT EXISTS usuario_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE
+  `);
+
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_gastos_usuario ON gastos(usuario_id)');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_ingresos_usuario ON ingresos(usuario_id)');
 }
 
 // Validación de fecha compartida (local, nunca UTC; sin fechas futuras ni del mes anterior)
 function validarFecha(fecha, res) {
-  const fechaObj = new Date(fecha);
+  const coincidencia = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(fecha));
+  if (!coincidencia) {
+    res.status(400).json({ error: 'Formato de fecha no válido' });
+    return false;
+  }
+
+  const anio = Number(coincidencia[1]);
+  const mes = Number(coincidencia[2]);
+  const dia = Number(coincidencia[3]);
+  const fechaObj = new Date(anio, mes - 1, dia);
+
+  // new Date corrige fechas imposibles (ej. 31/02), así que verificamos que coincida
+  if (fechaObj.getFullYear() !== anio || fechaObj.getMonth() !== mes - 1 || fechaObj.getDate() !== dia) {
+    res.status(400).json({ error: 'La fecha no es válida' });
+    return false;
+  }
+
   const hoy = new Date();
+  const fechaHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
 
-  const fechaLocal = new Date(
-    hoy.getFullYear(),
-    hoy.getMonth(),
-    hoy.getDate()
-  );
-
-  if (fechaObj > fechaLocal) {
+  if (fechaObj > fechaHoy) {
     res.status(400).json({ error: 'No se puede ingresar una fecha posterior a la actual' });
     return false;
   }
 
   const esMesAnterior =
     fechaObj.getFullYear() < hoy.getFullYear() ||
-    (fechaObj.getFullYear() === hoy.getFullYear() &&
-      fechaObj.getMonth() < hoy.getMonth());
+    (fechaObj.getFullYear() === hoy.getFullYear() && fechaObj.getMonth() < hoy.getMonth());
 
   if (esMesAnterior) {
     res.status(400).json({ error: 'No se puede ingresar datos del mes anterior' });
@@ -87,20 +184,107 @@ function validarFecha(fecha, res) {
   return true;
 }
 
-// Rutas para Gastos
+// --- Cuentas de usuario ---
 
-// 1. Registrar un nuevo gasto
-app.post('/gastos', async (req, res) => {
+// Registrar una cuenta nueva
+app.post('/registro', async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const contrasena = String(req.body.password || '');
+  const nombre = String(req.body.nombre || '').trim();
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Ingresá un email válido' });
+  }
+  if (contrasena.length < 6) {
+    return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+  }
+
+  try {
+    const hash = await hashearContrasena(contrasena);
+    const resultado = await pool.query(
+      `INSERT INTO usuarios (email, nombre, password_hash)
+       VALUES ($1, $2, $3) RETURNING id, email, nombre`,
+      [email, nombre || null, hash]
+    );
+    const usuario = resultado.rows[0];
+
+    // Si es la primera cuenta, heredan los registros de prueba que ya estaban en la BD
+    const total = await pool.query('SELECT COUNT(*)::int AS n FROM usuarios');
+    if (total.rows[0].n === 1) {
+      await pool.query('UPDATE gastos SET usuario_id = $1 WHERE usuario_id IS NULL', [usuario.id]);
+      await pool.query('UPDATE ingresos SET usuario_id = $1 WHERE usuario_id IS NULL', [usuario.id]);
+    }
+
+    res.status(201).json({
+      token: crearToken(usuario),
+      usuario,
+      mensaje: 'Cuenta creada correctamente'
+    });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Ya existe una cuenta con ese email' });
+    }
+    console.error('Error al registrar usuario:', error.message);
+    res.status(500).json({ error: 'No se pudo crear la cuenta' });
+  }
+});
+
+// Iniciar sesión
+app.post('/login', async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const contrasena = String(req.body.password || '');
+
+  try {
+    const resultado = await pool.query(
+      'SELECT id, email, nombre, password_hash FROM usuarios WHERE email = $1',
+      [email]
+    );
+
+    if (resultado.rowCount === 0 || !await verificarContrasena(contrasena, resultado.rows[0].password_hash)) {
+      return res.status(401).json({ error: 'Email o contraseña incorrectos' });
+    }
+
+    const usuario = resultado.rows[0];
+    res.json({
+      token: crearToken(usuario),
+      usuario: { id: usuario.id, email: usuario.email, nombre: usuario.nombre },
+      mensaje: 'Sesión iniciada'
+    });
+  } catch (error) {
+    console.error('Error al iniciar sesión:', error.message);
+    res.status(500).json({ error: 'No se pudo iniciar sesión' });
+  }
+});
+
+// Datos del usuario de la sesión actual
+app.get('/api/me', requerirAuth, async (req, res) => {
+  try {
+    const resultado = await pool.query(
+      'SELECT id, email, nombre FROM usuarios WHERE id = $1',
+      [req.usuario.id]
+    );
+    if (resultado.rowCount === 0) {
+      return res.status(401).json({ error: 'Usuario no encontrado. Iniciá sesión nuevamente.' });
+    }
+    res.json(resultado.rows[0]);
+  } catch (error) {
+    console.error('Error leyendo usuario:', error.message);
+    res.status(500).json({ error: 'No se pudo leer el usuario' });
+  }
+});
+
+// --- Gastos ---
+
+// Registrar un nuevo gasto
+app.post('/gastos', requerirAuth, async (req, res) => {
   const { fecha, categoria, descripcion, monto } = req.body;
 
-  // Validación: todos los campos obligatorios
   if (!fecha || !categoria || !descripcion || monto === undefined || monto <= 0) {
     return res.status(400).json({ error: 'Todos los campos son obligatorios y el monto debe ser mayor a 0' });
   }
 
   if (!validarFecha(fecha, res)) return;
 
-  // Determinar el tipo de categoría
   const categoriasFijas = ['Vivienda', 'Seguros', 'Electricidad', 'Agua', 'Internet', 'Celular'];
   const categoriasSemifijas = ['Alimentación', 'Transporte', 'Salud', 'Higiene'];
   const categoriasOcasionales = ['Salidas', 'Entretenimiento', 'Ahorro', 'Fondo Emergencia', 'Ropa', 'Zapatos', 'Otros'];
@@ -118,22 +302,25 @@ app.post('/gastos', async (req, res) => {
 
   try {
     const resultado = await pool.query(
-      `INSERT INTO gastos (fecha, categoria, descripcion, monto, tipo)
-       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-      [fecha, categoria, descripcion, monto, tipo]
+      `INSERT INTO gastos (fecha, categoria, descripcion, monto, tipo, usuario_id)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      [fecha, categoria, descripcion, monto, tipo, req.usuario.id]
     );
 
     res.json({ id: resultado.rows[0].id, mensaje: 'Gasto registrado correctamente' });
   } catch (error) {
     console.error('Error al registrar gasto:', error.message);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'No se pudo registrar el gasto' });
   }
 });
 
-// 2. Eliminar un gasto
-app.delete('/gastos/:id', async (req, res) => {
+// Eliminar un gasto (solo del usuario actual)
+app.delete('/gastos/:id', requerirAuth, async (req, res) => {
   try {
-    const resultado = await pool.query('DELETE FROM gastos WHERE id = $1 RETURNING id', [req.params.id]);
+    const resultado = await pool.query(
+      'DELETE FROM gastos WHERE id = $1 AND usuario_id = $2 RETURNING id',
+      [req.params.id, req.usuario.id]
+    );
 
     if (resultado.rowCount === 0) {
       return res.status(404).json({ error: 'Gasto no encontrado' });
@@ -142,15 +329,15 @@ app.delete('/gastos/:id', async (req, res) => {
     res.json({ mensaje: 'Gasto eliminado correctamente' });
   } catch (error) {
     console.error('Error al eliminar gasto:', error.message);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'No se pudo eliminar el gasto' });
   }
 });
 
-// 3. Listar gastos por fecha o mes
-app.get('/gastos', async (req, res) => {
+// Listar gastos del usuario por fecha o mes
+app.get('/gastos', requerirAuth, async (req, res) => {
   const { fecha, mes } = req.query;
-  let sql = 'SELECT * FROM gastos WHERE 1=1';
-  const params = [];
+  const params = [req.usuario.id];
+  let sql = 'SELECT id, fecha, categoria, descripcion, monto, tipo FROM gastos WHERE usuario_id = $1';
 
   if (fecha) {
     params.push(fecha);
@@ -169,14 +356,14 @@ app.get('/gastos', async (req, res) => {
     res.json(resultado.rows);
   } catch (error) {
     console.error('Error al listar gastos:', error.message);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'No se pudieron listar los gastos' });
   }
 });
 
-// Rutas para Ingresos
+// --- Ingresos ---
 
-// 4. Registrar un nuevo ingreso
-app.post('/ingresos', async (req, res) => {
+// Registrar un nuevo ingreso
+app.post('/ingresos', requerirAuth, async (req, res) => {
   const { fecha, descripcion, monto } = req.body;
 
   if (!fecha || !descripcion || monto === undefined || monto <= 0) {
@@ -187,23 +374,23 @@ app.post('/ingresos', async (req, res) => {
 
   try {
     const resultado = await pool.query(
-      `INSERT INTO ingresos (fecha, descripcion, monto)
-       VALUES ($1, $2, $3) RETURNING id`,
-      [fecha, descripcion, monto]
+      `INSERT INTO ingresos (fecha, descripcion, monto, usuario_id)
+       VALUES ($1, $2, $3, $4) RETURNING id`,
+      [fecha, descripcion, monto, req.usuario.id]
     );
 
     res.json({ id: resultado.rows[0].id, mensaje: 'Ingreso registrado correctamente' });
   } catch (error) {
     console.error('Error al registrar ingreso:', error.message);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'No se pudo registrar el ingreso' });
   }
 });
 
-// 4b. Listar ingresos por fecha o mes
-app.get('/ingresos', async (req, res) => {
+// Listar ingresos del usuario por fecha o mes
+app.get('/ingresos', requerirAuth, async (req, res) => {
   const { fecha, mes } = req.query;
-  let sql = 'SELECT * FROM ingresos WHERE 1=1';
-  const params = [];
+  const params = [req.usuario.id];
+  let sql = 'SELECT id, fecha, descripcion, monto FROM ingresos WHERE usuario_id = $1';
 
   if (fecha) {
     params.push(fecha);
@@ -222,14 +409,17 @@ app.get('/ingresos', async (req, res) => {
     res.json(resultado.rows);
   } catch (error) {
     console.error('Error al listar ingresos:', error.message);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'No se pudieron listar los ingresos' });
   }
 });
 
-// 4c. Eliminar un ingreso
-app.delete('/ingresos/:id', async (req, res) => {
+// Eliminar un ingreso (solo del usuario actual)
+app.delete('/ingresos/:id', requerirAuth, async (req, res) => {
   try {
-    const resultado = await pool.query('DELETE FROM ingresos WHERE id = $1 RETURNING id', [req.params.id]);
+    const resultado = await pool.query(
+      'DELETE FROM ingresos WHERE id = $1 AND usuario_id = $2 RETURNING id',
+      [req.params.id, req.usuario.id]
+    );
 
     if (resultado.rowCount === 0) {
       return res.status(404).json({ error: 'Ingreso no encontrado' });
@@ -238,19 +428,19 @@ app.delete('/ingresos/:id', async (req, res) => {
     res.json({ mensaje: 'Ingreso eliminado correctamente' });
   } catch (error) {
     console.error('Error al eliminar ingreso:', error.message);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'No se pudo eliminar el ingreso' });
   }
 });
 
-// 5. Balance en el mes
-app.get('/balance', async (req, res) => {
+// Balance del mes, solo de los datos del usuario
+app.get('/balance', requerirAuth, async (req, res) => {
   const { mes } = req.query;
-  const params = [];
-  let where = '';
+  const params = [req.usuario.id];
+  let where = ' WHERE usuario_id = $1';
 
   if (mes) {
     params.push(`${mes}%`);
-    where = ' WHERE fecha LIKE $1';
+    where += ` AND fecha LIKE $${params.length}`;
   }
 
   try {
@@ -267,7 +457,7 @@ app.get('/balance', async (req, res) => {
     res.json({ mes, totalIngresos, totalGastos, balance });
   } catch (error) {
     console.error('Error calculando balance:', error.message);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'No se pudo calcular el balance' });
   }
 });
 
@@ -277,7 +467,6 @@ function obtenerIPsLocales() {
   const ips = [];
   for (const nombre of Object.keys(interfaces)) {
     for (const iface of interfaces[nombre]) {
-      // Solo IPv4 y no internas (127.0.0.1)
       if (iface.family === 'IPv4' && !iface.internal) {
         ips.push(iface.address);
       }
@@ -294,6 +483,7 @@ inicializarDB()
       console.log('  CUENTAS - API y frontend funcionando');
       console.log('=============================================');
       console.log('  Base de datos: PostgreSQL (Supabase)');
+      console.log('  Autenticación: usuario + contraseña');
 
       if (process.env.RENDER) {
         console.log('  Modo nube: accesible desde la URL que te da Render');

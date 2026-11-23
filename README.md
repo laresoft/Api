@@ -6,6 +6,8 @@ App para registrar gastos e ingresos. Funciona en el celular y en cualquier disp
 
 **Costo: $0** — Render Free + Supabase Free.
 
+**Multiusuario:** cada persona se registra con email y contraseña y ve **solo sus propios datos**. Todos comparten el mismo deploy y la misma APK; la separación se hace con `usuario_id` en cada tabla.
+
 ---
 
 ## 1. Crear la base de datos en Supabase (gratis)
@@ -29,19 +31,20 @@ App para registrar gastos e ingresos. Funciona en el celular y en cualquier disp
 
 ## 2. Configurar y probar en local
 
-1. Copiá `.env.example` como `.env` y pegá tu cadena:
+1. Copiá `.env.example` como `.env` y completá las dos variables:
    ```bash
    cp .env.example .env
-   # editá .env y reemplazá el valor de DATABASE_URL
+   # DATABASE_URL= cadena de Supabase
+   # JWT_SECRET= clave aleatoria (openssl rand -hex 32)
    ```
 2. Instalá dependencias y arrancá:
    ```bash
    npm install
    npm start
    ```
-3. Abrí http://localhost:3000
+3. Abrí http://localhost:3000, creá una cuenta y registrá gastos/ingresos.
 
-> `.env` está en `.gitignore`: **nunca** se sube a GitHub.
+> `.env` está en `.gitignore`: **nunca** se sube a GitHub. La clave `JWT_SECRET` debe ser la misma en local y en Render.
 
 ---
 
@@ -59,19 +62,32 @@ App para registrar gastos e ingresos. Funciona en el celular y en cualquier disp
    ```
    Verificá antes que `.env` no aparezca en `git status`.
 3. En https://dashboard.render.com → **New → Blueprint** → conectá GitHub → elegí el repo.
-4. Render detecta `render.yaml`. Cuando te pida `DATABASE_URL`, pegá **la misma cadena** del paso 1 → **Apply**.
+4. Render detecta `render.yaml`. Cuando te pida las variables, pegá:
+   - `DATABASE_URL`: la misma cadena del paso 1.
+   - `JWT_SECRET`: la misma clave aleatoria del paso 2.
 5. En unos minutos te da la URL:
    ```
    https://cuentas-xxxx.onrender.com
    ```
 
-Abrila desde el celular o desde una PC con Windows: no hay que instalar nada, solo un navegador.
-
-Cada `git push` actualiza la app automáticamente.
+Cada `git push` actualiza la app automáticamente. Si cambiás `JWT_SECRET`, las sesiones existentes quedan inválidas y hay que volver a iniciar sesión.
 
 ---
 
-## 4. APK para el celular (opcional)
+## 4. Cómo usarla con varias personas
+
+1. Abrí la URL (o la APK) y clic en **¿No tenés cuenta? Registrate**.
+2. Ingresá email y contraseña (mínimo 6 caracteres) → **Crear cuenta**.
+3. Cada persona ve su propio balance, gastos e ingresos.
+4. **Cerrar sesión** está arriba a la derecha, al lado del email.
+
+La sesión queda guardada en el dispositivo 30 días. Si otra persona usa el mismo celular, debe cerrar sesión e iniciar con su cuenta.
+
+> Los registros que existían antes de activar los usuarios se asignan automáticamente a la **primera cuenta que se cree**.
+
+---
+
+## 5. APK para el celular (opcional)
 
 La PWA ya está preparada (`manifest.webmanifest`, `sw.js`, iconos). Con Capacitor se genera el APK:
 
@@ -85,6 +101,8 @@ cd android && ./gradlew assembleDebug
 
 El APK queda en `android/app/build/outputs/apk/debug/app-debug.apk`. Requiere JDK 21 y Android SDK instalados.
 
+> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache `cuentas-v2`).
+
 ---
 
 ## Limitaciones del plan gratuito
@@ -97,15 +115,20 @@ El APK queda en `android/app/build/outputs/apk/debug/app-debug.apk`. Requiere JD
 
 ## Endpoints
 
+Las rutas marcadas con 🔒 requieren la cabecera `Authorization: Bearer <token>`, que se obtiene al registrar o iniciar sesión.
+
 | Método | Ruta | Descripción |
 |---|---|---|
-| `GET` | `/` | Interfaz web |
-| `POST` | `/gastos` | Registrar gasto |
-| `GET` | `/gastos?fecha=YYYY-MM-DD` | Gastos de un día |
-| `GET` | `/gastos?mes=YYYY-MM` | Gastos de un mes |
-| `DELETE` | `/gastos/:id` | Eliminar gasto |
-| `POST` | `/ingresos` | Registrar ingreso |
-| `GET` | `/ingresos?fecha=YYYY-MM-DD` | Ingresos de un día |
-| `GET` | `/ingresos?mes=YYYY-MM` | Ingresos de un mes |
-| `DELETE` | `/ingresos/:id` | Eliminar ingreso |
-| `GET` | `/balance?mes=YYYY-MM` | Ingresos, gastos y balance del mes |
+| `GET` | `/` | Interfaz web (pantalla de acceso si no hay sesión) |
+| `POST` | `/registro` | Crear cuenta (email, password, nombre opcional) → devuelve token |
+| `POST` | `/login` | Iniciar sesión → devuelve token |
+| `GET` | `/api/me` | 🔒 Datos del usuario actual |
+| `POST` | `/gastos` | 🔒 Registrar gasto |
+| `GET` | `/gastos?fecha=YYYY-MM-DD` | 🔒 Gastos del usuario en un día |
+| `GET` | `/gastos?mes=YYYY-MM` | 🔒 Gastos del usuario en un mes |
+| `DELETE` | `/gastos/:id` | 🔒 Eliminar gasto propio |
+| `POST` | `/ingresos` | 🔒 Registrar ingreso |
+| `GET` | `/ingresos?fecha=YYYY-MM-DD` | 🔒 Ingresos del usuario en un día |
+| `GET` | `/ingresos?mes=YYYY-MM` | 🔒 Ingresos del usuario en un mes |
+| `DELETE` | `/ingresos/:id` | 🔒 Eliminar ingreso propio |
+| `GET` | `/balance?mes=YYYY-MM` | 🔒 Ingresos, gastos y balance del mes del usuario |

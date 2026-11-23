@@ -17,3 +17,7 @@ services:
       # Pegá la misma DATABASE_URL que usás en tu .env local.
       - key: DATABASE_URL
         sync: false
+      # Clave para firmar los tokens de sesión (generada con openssl rand -hex 32).
+      # La cargamos en el Environment del servicio; sync: false evita subirla al repo.
+      - key: JWT_SECRET
+        sync: false
