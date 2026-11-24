@@ -3,6 +3,8 @@ const { Pool } = require('pg');
 const cors = require('cors');
 const os = require('os');
 const crypto = require('crypto');
+const path = require('path');
+const nodemailer = require('nodemailer');
 const { promisify } = require('util');
 
 require('dotenv').config();
@@ -30,6 +32,11 @@ app.use((req, res, next) => {
   next();
 });
 
+// La pantalla de restablecer usa el mismo index.html; el frontend decide qué mostrar
+app.get('/restablecer', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 // Servir el frontend (index.html, style.css, script.js) desde este mismo servidor
 app.use(express.static(__dirname));
 
@@ -51,8 +58,43 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+// Envío de correos para recuperar la contraseña (Gmail con contraseña de aplicación)
+const URL_APP = process.env.APP_URL || 'https://cuentas-k956.onrender.com';
+const transportista = (process.env.EMAIL_USER && process.env.EMAIL_APP_PASSWORD)
+  ? nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_APP_PASSWORD
+      }
+    })
+  : null;
+
 const scrypt = promisify(crypto.scrypt);
 const DURACION_SESION = 60 * 60 * 24 * 30; // 30 días, en segundos
+const DURACION_RECUPERACION = 30 * 60 * 1000; // 30 minutos, en milisegundos
+
+// Límite simple: máximo 3 pedidos por email cada 10 minutos
+const intentosRecuperacion = new Map();
+
+function permiteRecuperar(email) {
+  const ahora = Date.now();
+  const recientes = (intentosRecuperacion.get(email) || [])
+    .filter(instante => ahora - instante < 10 * 60 * 1000);
+
+  if (recientes.length >= 3) {
+    intentosRecuperacion.set(email, recientes);
+    return false;
+  }
+
+  recientes.push(ahora);
+  intentosRecuperacion.set(email, recientes);
+  return true;
+}
+
+function hashToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
 
 // --- Contraseñas y tokens (usamos solo crypto, sin dependencias extra) ---
 
@@ -143,6 +185,19 @@ async function inicializarDB() {
 
   await pool.query('CREATE INDEX IF NOT EXISTS idx_gastos_usuario ON gastos(usuario_id)');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_ingresos_usuario ON ingresos(usuario_id)');
+
+  // Tokens de un solo uso para recuperar la contraseña
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS recuperaciones (
+      id SERIAL PRIMARY KEY,
+      usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+      token_hash TEXT NOT NULL,
+      expira_en TIMESTAMPTZ NOT NULL,
+      usado BOOLEAN NOT NULL DEFAULT FALSE,
+      creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_recuperaciones_token ON recuperaciones(token_hash)');
 }
 
 // Validación de fecha compartida (local, nunca UTC; sin fechas futuras ni del mes anterior)
@@ -306,6 +361,131 @@ app.post('/cambiar-contrasena', requerirAuth, async (req, res) => {
   } catch (error) {
     console.error('Error al cambiar contraseña:', error.message);
     res.status(500).json({ error: 'No se pudo actualizar la contraseña' });
+  }
+});
+
+// --- Recuperación de contraseña ---
+
+const MENSAJE_GENERAL_RECUPERACION =
+  'Si existe una cuenta con ese email, enviamos un enlace para restablecer la contraseña. Revisá también la carpeta de Spam.';
+
+// Pedir el enlace de recuperación
+app.post('/recuperar', async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+
+  // Siempre la misma respuesta: así no se revela qué emails están registrados
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !permiteRecuperar(email)) {
+    return res.json({ mensaje: MENSAJE_GENERAL_RECUPERACION });
+  }
+
+  try {
+    const usuario = await pool.query(
+      'SELECT id, email, nombre FROM usuarios WHERE email = $1',
+      [email]
+    );
+
+    if (usuario.rowCount > 0) {
+      const u = usuario.rows[0];
+      const token = crypto.randomBytes(32).toString('hex');
+
+      // Invalidamos los enlaces anteriores de este usuario
+      await pool.query(
+        'UPDATE recuperaciones SET usado = TRUE WHERE usuario_id = $1 AND usado = FALSE',
+        [u.id]
+      );
+      await pool.query(
+        `INSERT INTO recuperaciones (usuario_id, token_hash, expira_en)
+         VALUES ($1, $2, $3)`,
+        [u.id, hashToken(token), new Date(Date.now() + DURACION_RECUPERACION)]
+      );
+
+      if (!transportista) {
+        console.error('ERROR: EMAIL_USER / EMAIL_APP_PASSWORD no configurados');
+      } else {
+        const enlace = `${URL_APP}/restablecer?token=${token}`;
+        const nombre = u.nombre || 'usuario';
+
+        await transportista.sendMail({
+          from: `"Cuentas" <${process.env.EMAIL_USER}>`,
+          to: u.email,
+          subject: 'Restablecé tu contraseña de Cuentas',
+          text: `Hola ${nombre}:\n\nRecibimos un pedido para cambiar tu contraseña.\n\nAbrí este enlace (válido 30 minutos):\n${enlace}\n\nSi no lo pediste, ignorá este correo.\n`,
+          html: `<div style="font-family:system-ui,sans-serif;max-width:520px;margin:auto">
+            <h2>Restablecé tu contraseña</h2>
+            <p>Hola ${nombre}, recibimos un pedido para cambiar tu contraseña en Cuentas.</p>
+            <p style="margin:24px 0">
+              <a href="${enlace}" style="background:#27ae60;color:#fff;padding:12px 18px;border-radius:6px;text-decoration:none;display:inline-block">Nueva contraseña</a>
+            </p>
+            <p>El enlace vence en 30 minutos y solo se puede usar una vez.</p>
+            <p>Si no lo pediste, podés ignorar este correo.</p>
+          </div>`
+        });
+      }
+    }
+  } catch (error) {
+    // No mostramos el error al usuario para no revelar si el email existe
+    console.error('Error en recuperación:', error.message);
+  }
+
+  res.json({ mensaje: MENSAJE_GENERAL_RECUPERACION });
+});
+
+// Confirmar que el enlace sigue siendo válido (lo usa la pantalla de restablecer)
+app.get('/api/restablecer/validar', async (req, res) => {
+  const token = String(req.query.token || '');
+
+  try {
+    const resultado = await pool.query(
+      `SELECT id FROM recuperaciones
+       WHERE token_hash = $1 AND usado = FALSE AND expira_en > NOW()`,
+      [hashToken(token)]
+    );
+    res.json({ valido: resultado.rowCount > 0 });
+  } catch (error) {
+    console.error('Error validando enlace:', error.message);
+    res.status(500).json({ error: 'No se pudo validar el enlace' });
+  }
+});
+
+// Guardar la nueva contraseña usando el token del correo
+app.post('/restablecer', async (req, res) => {
+  const token = String(req.body.token || '');
+  const contrasena = String(req.body.password || '');
+
+  if (contrasena.length < 6) {
+    return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+  }
+
+  const cliente = await pool.connect();
+  try {
+    await cliente.query('BEGIN');
+
+    const recuperacion = await cliente.query(
+      `SELECT id, usuario_id FROM recuperaciones
+       WHERE token_hash = $1 AND usado = FALSE AND expira_en > NOW()
+       FOR UPDATE`,
+      [hashToken(token)]
+    );
+
+    if (recuperacion.rowCount === 0) {
+      await cliente.query('ROLLBACK');
+      return res.status(400).json({ error: 'El enlace venció o no es válido. Solicitá uno nuevo.' });
+    }
+
+    const hash = await hashearContrasena(contrasena);
+    await cliente.query('UPDATE usuarios SET password_hash = $1 WHERE id = $2',
+      [hash, recuperacion.rows[0].usuario_id]);
+    await cliente.query('UPDATE recuperaciones SET usado = TRUE WHERE usuario_id = $1',
+      [recuperacion.rows[0].usuario_id]);
+
+    await cliente.query('COMMIT');
+    res.json({ mensaje: 'Contraseña actualizada correctamente. Ya podés iniciar sesión.' });
+  } catch (error) {
+    await cliente.query('ROLLBACK');
+    console.error('Error al restablecer contraseña:', error.message);
+    res.status(500).json({ error: 'No se pudo actualizar la contraseña' });
+  } finally {
+    cliente.release();
   }
 });
 

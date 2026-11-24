@@ -247,6 +247,12 @@ button:disabled {
   text-align: left;
 }
 
+.texto-ayuda {
+  color: #555;
+  font-size: 0.9rem;
+  margin: 0 0 15px;
+}
+
 /* Campo de contraseña con botón para ver/ocultar */
 .contra {
   display: flex;

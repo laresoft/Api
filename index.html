@@ -36,6 +36,7 @@
           </div>
         </div>
         <button type="submit" id="btn-login">Entrar</button>
+        <button type="button" id="btn-olvide" class="btn-secundario">¿Olvidaste tu contraseña?</button>
       </form>
 
       <form id="form-registro" class="oculto">
@@ -235,6 +236,50 @@
       <p id="mensaje-contrasena" class="auth-mensaje"></p>
     </section>
   </main>
+
+  <!-- Pantalla: pedir el enlace de recuperación -->
+  <div id="olvide" class="oculto">
+    <section class="tarjeta-auth">
+      <h2>Recuperar contraseña</h2>
+      <p class="texto-ayuda">Ingresá el email de tu cuenta y te enviaremos un enlace para crear una contraseña nueva.</p>
+      <form id="form-recuperar">
+        <div class="campo">
+          <label for="recuperar-email">Email:</label>
+          <input type="email" id="recuperar-email" autocomplete="email" required>
+        </div>
+        <button type="submit" id="btn-recuperar">Enviar enlace</button>
+      </form>
+      <p id="mensaje-recuperar" class="auth-mensaje"></p>
+      <button type="button" class="btn-secundario" data-volver-login>Volver al inicio de sesión</button>
+    </section>
+  </div>
+
+  <!-- Pantalla: nueva contraseña (se abre desde el correo) -->
+  <div id="restablecer" class="oculto">
+    <section class="tarjeta-auth">
+      <h2>Nueva contraseña</h2>
+      <p id="mensaje-token" class="texto-ayuda">Verificando el enlace…</p>
+      <form id="form-restablecer" class="oculto">
+        <div class="campo">
+          <label for="restablecer-password">Nueva contraseña (mínimo 6 caracteres):</label>
+          <div class="contra">
+            <input type="password" id="restablecer-password" autocomplete="new-password" minlength="6" required>
+            <button type="button" class="btn-ver-contra" data-ver="restablecer-password" aria-label="Ver contraseña">👁️ Ver</button>
+          </div>
+        </div>
+        <div class="campo">
+          <label for="restablecer-confirmar">Confirmar contraseña:</label>
+          <div class="contra">
+            <input type="password" id="restablecer-confirmar" autocomplete="new-password" minlength="6" required>
+            <button type="button" class="btn-ver-contra" data-ver="restablecer-confirmar" aria-label="Ver contraseña">👁️ Ver</button>
+          </div>
+        </div>
+        <button type="submit" id="btn-restablecer">Guardar contraseña</button>
+      </form>
+      <p id="mensaje-restablecer" class="auth-mensaje"></p>
+      <button type="button" class="btn-secundario" data-volver-login>Volver al inicio de sesión</button>
+    </section>
+  </div>
 
   <!-- Mensaje de bienvenida: se muestra al entrar, antes de abrir la app -->
   <div id="modal-bienvenida" class="oculto" role="dialog" aria-modal="true" aria-labelledby="bienvenida-titulo">

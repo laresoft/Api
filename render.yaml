@@ -21,3 +21,10 @@ services:
       # La cargamos en el Environment del servicio; sync: false evita subirla al repo.
       - key: JWT_SECRET
         sync: false
+      # Envío de correos para recuperar contraseñas (Gmail con contraseña de aplicación)
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_APP_PASSWORD
+        sync: false
+      - key: APP_URL
+        sync: false

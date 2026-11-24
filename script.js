@@ -77,6 +77,21 @@ const bienvenidaTitulo = document.getElementById('bienvenida-titulo');
 const bienvenidaMensaje = document.getElementById('bienvenida-mensaje');
 const btnBienvenidaContinuar = document.getElementById('btn-bienvenida-continuar');
 
+// Pantallas de recuperación de contraseña
+const olvide = document.getElementById('olvide');
+const restablecer = document.getElementById('restablecer');
+const btnOlvide = document.getElementById('btn-olvide');
+const formRecuperar = document.getElementById('form-recuperar');
+const btnRecuperar = document.getElementById('btn-recuperar');
+const recuperarEmail = document.getElementById('recuperar-email');
+const mensajeRecuperar = document.getElementById('mensaje-recuperar');
+const formRestablecer = document.getElementById('form-restablecer');
+const btnRestablecer = document.getElementById('btn-restablecer');
+const restablecerPassword = document.getElementById('restablecer-password');
+const restablecerConfirmar = document.getElementById('restablecer-confirmar');
+const mensajeRestablecer = document.getElementById('mensaje-restablecer');
+const mensajeToken = document.getElementById('mensaje-token');
+
 let mostrandoRegistro = false;
 
 // Botones "Ver / Ocultar" para poder corregir la contraseña antes de enviar
@@ -103,8 +118,30 @@ document.querySelectorAll('.btn-ver-contra').forEach(boton => {
 function mostrarAuth(mensaje = '') {
   app.classList.add('oculto');
   barraUsuario.classList.add('oculto');
+  olvide.classList.add('oculto');
+  restablecer.classList.add('oculto');
   auth.classList.remove('oculto');
   authMensaje.textContent = mensaje;
+}
+
+function mostrarOlvide() {
+  app.classList.add('oculto');
+  barraUsuario.classList.add('oculto');
+  auth.classList.add('oculto');
+  restablecer.classList.add('oculto');
+  olvide.classList.remove('oculto');
+  mensajeRecuperar.textContent = '';
+  mensajeRecuperar.classList.remove('ok');
+  recuperarEmail.value = loginEmail.value.trim();
+  recuperarEmail.focus();
+}
+
+function mostrarRestablecer() {
+  app.classList.add('oculto');
+  barraUsuario.classList.add('oculto');
+  auth.classList.add('oculto');
+  olvide.classList.add('oculto');
+  restablecer.classList.remove('oculto');
 }
 
 function mostrarApp(usuario) {
@@ -117,6 +154,8 @@ function mostrarApp(usuario) {
 function cerrarSesion(mensaje = '') {
   localStorage.removeItem(CLAVE_TOKEN);
   modalBienvenida.classList.add('oculto');
+  olvide.classList.add('oculto');
+  restablecer.classList.add('oculto');
   formLogin.reset();
   formRegistro.reset();
   ocultarContrasenas();
@@ -169,6 +208,93 @@ btnAlternarAuth.addEventListener('click', () => {
     : '¿No tenés cuenta? Registrate';
   authMensaje.textContent = '';
 });
+
+btnOlvide.addEventListener('click', mostrarOlvide);
+
+document.querySelectorAll('[data-volver-login]').forEach(boton => {
+  boton.addEventListener('click', () => {
+    window.history.replaceState({}, '', '/');
+    mostrarAuth();
+  });
+});
+
+formRecuperar.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  btnRecuperar.disabled = true;
+  mensajeRecuperar.textContent = 'Enviando…';
+  mensajeRecuperar.classList.remove('ok');
+
+  try {
+    const datos = await apiJSON('/recuperar', {
+      method: 'POST',
+      body: JSON.stringify({ email: recuperarEmail.value.trim() })
+    });
+    mensajeRecuperar.textContent = datos.mensaje;
+    mensajeRecuperar.classList.add('ok');
+  } catch (error) {
+    mensajeRecuperar.textContent = error.message;
+  } finally {
+    btnRecuperar.disabled = false;
+  }
+});
+
+formRestablecer.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  mensajeRestablecer.textContent = '';
+  mensajeRestablecer.classList.remove('ok');
+
+  if (restablecerPassword.value !== restablecerConfirmar.value) {
+    mensajeRestablecer.textContent = 'Las contraseñas no coinciden';
+    return;
+  }
+  if (restablecerPassword.value.length < 6) {
+    mensajeRestablecer.textContent = 'La contraseña debe tener al menos 6 caracteres';
+    return;
+  }
+
+  const token = new URLSearchParams(window.location.search).get('token') || '';
+  btnRestablecer.disabled = true;
+  try {
+    const datos = await apiJSON('/restablecer', {
+      method: 'POST',
+      body: JSON.stringify({ token, password: restablecerPassword.value })
+    });
+    formRestablecer.classList.add('oculto');
+    mensajeToken.textContent = '✅ Todo listo';
+    mensajeRestablecer.textContent = datos.mensaje;
+    mensajeRestablecer.classList.add('ok');
+    localStorage.removeItem(CLAVE_TOKEN);
+    setTimeout(() => { window.location.href = '/'; }, 2500);
+  } catch (error) {
+    mensajeRestablecer.textContent = error.message;
+  } finally {
+    btnRestablecer.disabled = false;
+  }
+});
+
+async function verificarEnlaceRestablecer() {
+  mostrarRestablecer();
+  const token = new URLSearchParams(window.location.search).get('token') || '';
+
+  if (!token) {
+    mensajeToken.textContent = 'El enlace no es válido. Pedí uno nuevo desde el inicio de sesión.';
+    return;
+  }
+
+  mensajeToken.textContent = 'Verificando el enlace…';
+  try {
+    const datos = await apiJSON(`/api/restablecer/validar?token=${encodeURIComponent(token)}`);
+    if (datos.valido) {
+      mensajeToken.textContent = 'Elegí una contraseña nueva para tu cuenta.';
+      formRestablecer.classList.remove('oculto');
+      restablecerPassword.focus();
+    } else {
+      mensajeToken.textContent = 'El enlace venció o ya se usó. Pedí uno nuevo desde el inicio de sesión.';
+    }
+  } catch (error) {
+    mensajeToken.textContent = error.message;
+  }
+}
 
 formLogin.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -246,6 +372,12 @@ async function cargarDatos() {
 }
 
 async function verificarSesion() {
+  // Si llegamos desde el correo, mostramos la pantalla de nueva contraseña
+  if (window.location.pathname === '/restablecer') {
+    await verificarEnlaceRestablecer();
+    return;
+  }
+
   if (!obtenerToken()) {
     mostrarAuth();
     return;

@@ -36,6 +36,9 @@ App para registrar gastos e ingresos. Funciona en el celular y en cualquier disp
    cp .env.example .env
    # DATABASE_URL= cadena de Supabase
    # JWT_SECRET= clave aleatoria (openssl rand -hex 32)
+   # EMAIL_USER= tu Gmail
+   # EMAIL_APP_PASSWORD= contraseña de aplicación de Gmail (16 caracteres, sin espacios)
+   # APP_URL= http://localhost:3000
    ```
 2. Instalá dependencias y arrancá:
    ```bash
@@ -65,6 +68,9 @@ App para registrar gastos e ingresos. Funciona en el celular y en cualquier disp
 4. Render detecta `render.yaml`. Cuando te pida las variables, pegá:
    - `DATABASE_URL`: la misma cadena del paso 1.
    - `JWT_SECRET`: la misma clave aleatoria del paso 2.
+   - `EMAIL_USER`: tu Gmail (ej. `laresoftuy@gmail.com`).
+   - `EMAIL_APP_PASSWORD`: contraseña de aplicación de Gmail (16 caracteres sin espacios).
+   - `APP_URL`: la URL pública de Render (ej. `https://cuentas-xxxx.onrender.com`).
 5. En unos minutos te da la URL:
    ```
    https://cuentas-xxxx.onrender.com
@@ -83,6 +89,15 @@ Cada `git push` actualiza la app automáticamente. Si cambiás `JWT_SECRET`, las
 5. Para cambiar la contraseña, abrí **Cambiar Contraseña** (al final de la pantalla), ingresá la actual y la nueva dos veces. Los botones **👁️ Ver / 🙈 Ocultar** sirven para revisar lo escrito.
 
 La sesión queda guardada en el dispositivo 30 días. Si otra persona usa el mismo celular, debe cerrar sesión e iniciar con su cuenta.
+
+### ¿Olvidaste la contraseña?
+
+1. En el login, clic en **¿Olvidaste tu contraseña?** y escribí el email de la cuenta.
+2. Llega un correo con un enlace válido **30 minutos** y de **un solo uso** (revisá Spam).
+3. Al abrirlo se muestra la pantalla para escribir la nueva contraseña dos veces.
+4. Después volvés al login e ingresás con la contraseña nueva.
+
+Si el correo no aparece, podés volver a pedirlo. Por seguridad la respuesta es siempre la misma, sin importar si el email existe. Para crear la contraseña de aplicación de Gmail: activá 2 pasos en https://myaccount.google.com/security y generá una en https://myaccount.google.com/apppasswords.
 
 > Los registros que existían antes de activar los usuarios se asignan automáticamente a la **primera cuenta que se cree**.
 
@@ -125,6 +140,10 @@ Las rutas marcadas con 🔒 requieren la cabecera `Authorization: Bearer <token>
 | `POST` | `/login` | Iniciar sesión → devuelve token |
 | `GET` | `/api/me` | 🔒 Datos del usuario actual |
 | `POST` | `/cambiar-contrasena` | 🔒 Cambiar contraseña (contraseña actual + nueva) |
+| `POST` | `/recuperar` | Pedir enlace de recuperación por email |
+| `GET` | `/restablecer?token=...` | Pantalla de nueva contraseña |
+| `GET` | `/api/restablecer/validar?token=...` | Validar enlace de recuperación |
+| `POST` | `/restablecer` | Guardar la nueva contraseña con el token del email |
 | `POST` | `/gastos` | 🔒 Registrar gasto |
 | `GET` | `/gastos?fecha=YYYY-MM-DD` | 🔒 Gastos del usuario en un día |
 | `GET` | `/gastos?mes=YYYY-MM` | 🔒 Gastos del usuario en un mes |
