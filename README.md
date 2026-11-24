@@ -31,13 +31,14 @@ App para registrar gastos e ingresos. Funciona en el celular y en cualquier disp
 
 ## 2. Configurar y probar en local
 
-1. Copiá `.env.example` como `.env` y completá las dos variables:
+1. Copiá `.env.example` como `.env` y completá las variables:
    ```bash
    cp .env.example .env
    # DATABASE_URL= cadena de Supabase
    # JWT_SECRET= clave aleatoria (openssl rand -hex 32)
-   # EMAIL_USER= tu Gmail
-   # EMAIL_APP_PASSWORD= contraseña de aplicación de Gmail (16 caracteres, sin espacios)
+   # BREVO_API_KEY= key de API de Brevo (xkeysib-...)
+   # EMAIL_USER= remitente verificado en Brevo (o tu Gmail si probás SMTP en local)
+   # EMAIL_APP_PASSWORD= contraseña de aplicación de Gmail (solo para prueba local)
    # APP_URL= http://localhost:3000
    ```
 2. Instalá dependencias y arrancá:
@@ -68,9 +69,10 @@ App para registrar gastos e ingresos. Funciona en el celular y en cualquier disp
 4. Render detecta `render.yaml`. Cuando te pida las variables, pegá:
    - `DATABASE_URL`: la misma cadena del paso 1.
    - `JWT_SECRET`: la misma clave aleatoria del paso 2.
-   - `EMAIL_USER`: tu Gmail (ej. `laresoftuy@gmail.com`).
-   - `EMAIL_APP_PASSWORD`: contraseña de aplicación de Gmail (16 caracteres sin espacios).
+   - `BREVO_API_KEY`: key de **API** de Brevo (empieza con `xkeysib-`). Render Free bloquea los puertos SMTP, así que en producción se envía por HTTPS con Brevo (plan gratis, 300 correos/día).
+   - `EMAIL_USER`: el remitente verificado en Brevo (ej. `laresoftuy@gmail.com`). Si es un dominio gratuito, Brevo puede mostrarlo como `...@brevosend.com`.
    - `APP_URL`: la URL pública de Render (ej. `https://cuentas-xxxx.onrender.com`).
+   - `EMAIL_APP_PASSWORD`: opcional, solo para probar SMTP de Gmail en local (en Render no se usa porque el puerto está bloqueado).
 5. En unos minutos te da la URL:
    ```
    https://cuentas-xxxx.onrender.com
@@ -97,7 +99,9 @@ La sesión queda guardada en el dispositivo 30 días. Si otra persona usa el mis
 3. Al abrirlo se muestra la pantalla para escribir la nueva contraseña dos veces.
 4. Después volvés al login e ingresás con la contraseña nueva.
 
-Si el correo no aparece, podés volver a pedirlo. Por seguridad la respuesta es siempre la misma, sin importar si el email existe. Para crear la contraseña de aplicación de Gmail: activá 2 pasos en https://myaccount.google.com/security y generá una en https://myaccount.google.com/apppasswords.
+Si el correo no aparece, podés volver a pedirlo (y revisar Spam). Por seguridad la respuesta es siempre la misma, sin importar si el email existe.
+
+Para configurar el envío: en Brevo (https://www.brevo.com/, plan Free) ir a **Settings → Senders, Domains, IPs → Senders → Add a sender** y verificar la dirección con el código de 6 dígitos. Después en **Settings → SMTP & API → API Keys & MCP → Generate API key**, copiar la key `xkeysib-...` y cargarla como `BREVO_API_KEY`. No usar la key SMTP (`xsmtpsib-...`). Las cuentas nuevas de Brevo pueden tardar unas horas en habilitarse para enviar.
 
 > Los registros que existían antes de activar los usuarios se asignan automáticamente a la **primera cuenta que se cree**.
 
