@@ -247,6 +247,33 @@ button:disabled {
   text-align: left;
 }
 
+/* Campo de contraseña con botón para ver/ocultar */
+.contra {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.contra input {
+  flex: 1;
+  min-width: 0;
+}
+
+.btn-ver-contra {
+  width: auto;
+  flex-shrink: 0;
+  padding: 8px 10px;
+  background: #ecf0f1;
+  color: #2c3e50;
+  border: 1px solid #ddd;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.btn-ver-contra:hover {
+  background: #dfe6e9;
+}
+
 .auth-mensaje {
   min-height: 1.5em;
   margin: 10px 0 0;
@@ -268,6 +295,10 @@ button:disabled {
 }
 
 /* Barra del usuario dentro del encabezado */
+#usuario-email {
+  font-weight: 700;
+}
+
 #barra-usuario {
   display: flex;
   justify-content: center;
@@ -320,6 +351,11 @@ button:disabled {
   margin: 10px 0;
   color: #2c3e50;
   font-size: 1.3rem;
+}
+
+.modal-contenido h2 strong {
+  font-weight: 700;
+  color: #2980b9;
 }
 
 .modal-contenido p {

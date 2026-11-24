@@ -30,7 +30,10 @@
         </div>
         <div class="campo">
           <label for="login-password">Contraseña:</label>
-          <input type="password" id="login-password" autocomplete="current-password" minlength="6" required>
+          <div class="contra">
+            <input type="password" id="login-password" autocomplete="current-password" minlength="6" required>
+            <button type="button" class="btn-ver-contra" data-ver="login-password" aria-label="Ver contraseña">👁️ Ver</button>
+          </div>
         </div>
         <button type="submit" id="btn-login">Entrar</button>
       </form>
@@ -46,11 +49,17 @@
         </div>
         <div class="campo">
           <label for="registro-password">Contraseña (mínimo 6 caracteres):</label>
-          <input type="password" id="registro-password" autocomplete="new-password" minlength="6" required>
+          <div class="contra">
+            <input type="password" id="registro-password" autocomplete="new-password" minlength="6" required>
+            <button type="button" class="btn-ver-contra" data-ver="registro-password" aria-label="Ver contraseña">👁️ Ver</button>
+          </div>
         </div>
         <div class="campo">
           <label for="registro-confirmar">Confirmar contraseña:</label>
-          <input type="password" id="registro-confirmar" autocomplete="new-password" minlength="6" required>
+          <div class="contra">
+            <input type="password" id="registro-confirmar" autocomplete="new-password" minlength="6" required>
+            <button type="button" class="btn-ver-contra" data-ver="registro-confirmar" aria-label="Ver contraseña">👁️ Ver</button>
+          </div>
         </div>
         <button type="submit" id="btn-registro">Crear cuenta</button>
       </form>

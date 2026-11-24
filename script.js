@@ -79,6 +79,27 @@ const btnBienvenidaContinuar = document.getElementById('btn-bienvenida-continuar
 
 let mostrandoRegistro = false;
 
+// Botones "Ver / Ocultar" para poder corregir la contraseña antes de enviar
+function ocultarContrasenas() {
+  document.querySelectorAll('.btn-ver-contra').forEach(boton => {
+    const campo = document.getElementById(boton.dataset.ver);
+    campo.type = 'password';
+    boton.textContent = '👁️ Ver';
+    boton.setAttribute('aria-label', 'Ver contraseña');
+  });
+}
+
+document.querySelectorAll('.btn-ver-contra').forEach(boton => {
+  boton.addEventListener('click', () => {
+    const campo = document.getElementById(boton.dataset.ver);
+    const estabaVisible = campo.type === 'text';
+    campo.type = estabaVisible ? 'password' : 'text';
+    boton.textContent = estabaVisible ? '👁️ Ver' : '🙈 Ocultar';
+    boton.setAttribute('aria-label', estabaVisible ? 'Ver contraseña' : 'Ocultar contraseña');
+    campo.focus();
+  });
+});
+
 function mostrarAuth(mensaje = '') {
   app.classList.add('oculto');
   barraUsuario.classList.add('oculto');
@@ -98,6 +119,7 @@ function cerrarSesion(mensaje = '') {
   modalBienvenida.classList.add('oculto');
   formLogin.reset();
   formRegistro.reset();
+  ocultarContrasenas();
   mostrarAuth(mensaje);
 }
 
@@ -110,9 +132,14 @@ function nombreParaSaludo(usuario) {
 
 function abrirBienvenida(usuario, esRegistro) {
   const nombre = nombreParaSaludo(usuario);
-  bienvenidaTitulo.textContent = esRegistro
-    ? `¡Bienvenido, ${nombre}!`
-    : `¡Hola de nuevo, ${nombre}!`;
+
+  // Armamos el título con nodos para que el nombre vaya en negrita sin HTML crudo
+  bienvenidaTitulo.textContent = esRegistro ? '¡Bienvenido, ' : '¡Hola de nuevo, ';
+  const nombreResaltado = document.createElement('strong');
+  nombreResaltado.textContent = nombre;
+  bienvenidaTitulo.appendChild(nombreResaltado);
+  bienvenidaTitulo.appendChild(document.createTextNode('!'));
+
   bienvenidaMensaje.textContent = esRegistro
     ? 'Tu cuenta ya está lista. Desde ahora podés registrar tus gastos e ingresos.'
     : 'Qué gusto verte otra vez. Todo sigue donde lo dejaste.';
