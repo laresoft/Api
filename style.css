@@ -282,6 +282,10 @@ button:disabled {
   font-size: 0.9rem;
 }
 
+.auth-mensaje.ok {
+  color: #27ae60;
+}
+
 .btn-secundario {
   margin-top: 10px;
   background: transparent;

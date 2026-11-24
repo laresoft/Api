@@ -290,6 +290,14 @@ const resultadoIngresos = document.getElementById('resultado-ingresos');
 const mesBalance = document.getElementById('mes-balance');
 const resultadoBalance = document.getElementById('resultado-balance');
 
+// Elementos del DOM para cambiar contraseña
+const formContrasena = document.getElementById('form-contrasena');
+const btnCambiarContrasena = document.getElementById('btn-cambiar-contrasena');
+const contraActual = document.getElementById('contra-actual');
+const contraNueva = document.getElementById('contra-nueva');
+const contraConfirmar = document.getElementById('contra-confirmar');
+const mensajeContrasena = document.getElementById('mensaje-contrasena');
+
 // Funciones de fecha LOCAL (nunca UTC)
 function fechaLocalISO(fecha = new Date()) {
   const anio = fecha.getFullYear();
@@ -545,6 +553,41 @@ formIngreso.addEventListener('submit', async (e) => {
     calcularBalance();
   } catch (error) {
     alert(error.message);
+  }
+});
+
+// Cambiar la contraseña de la cuenta actual
+formContrasena.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  mensajeContrasena.textContent = '';
+  mensajeContrasena.classList.remove('ok');
+
+  if (contraNueva.value !== contraConfirmar.value) {
+    mensajeContrasena.textContent = 'Las contraseñas nuevas no coinciden';
+    return;
+  }
+  if (contraNueva.value.length < 6) {
+    mensajeContrasena.textContent = 'La nueva contraseña debe tener al menos 6 caracteres';
+    return;
+  }
+
+  btnCambiarContrasena.disabled = true;
+  try {
+    const data = await apiJSON('/cambiar-contrasena', {
+      method: 'POST',
+      body: JSON.stringify({
+        contrasenaActual: contraActual.value,
+        contrasenaNueva: contraNueva.value
+      })
+    });
+    formContrasena.reset();
+    ocultarContrasenas();
+    mensajeContrasena.textContent = `${data.mensaje} Ya podés usarla para entrar.`;
+    mensajeContrasena.classList.add('ok');
+  } catch (error) {
+    mensajeContrasena.textContent = error.message;
+  } finally {
+    btnCambiarContrasena.disabled = false;
   }
 });
 

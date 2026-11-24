@@ -79,7 +79,8 @@ Cada `git push` actualiza la app automáticamente. Si cambiás `JWT_SECRET`, las
 1. Abrí la URL (o la APK) y clic en **¿No tenés cuenta? Registrate**.
 2. Ingresá email y contraseña (mínimo 6 caracteres) → **Crear cuenta**.
 3. Cada persona ve su propio balance, gastos e ingresos.
-4. **Cerrar sesión** está arriba a la derecha, al lado del email.
+4. **Cerrar sesión** está arriba a la derecha, al lado del nombre.
+5. Para cambiar la contraseña, abrí **Cambiar Contraseña** (al final de la pantalla), ingresá la actual y la nueva dos veces. Los botones **👁️ Ver / 🙈 Ocultar** sirven para revisar lo escrito.
 
 La sesión queda guardada en el dispositivo 30 días. Si otra persona usa el mismo celular, debe cerrar sesión e iniciar con su cuenta.
 
@@ -123,6 +124,7 @@ Las rutas marcadas con 🔒 requieren la cabecera `Authorization: Bearer <token>
 | `POST` | `/registro` | Crear cuenta (email, password, nombre opcional) → devuelve token |
 | `POST` | `/login` | Iniciar sesión → devuelve token |
 | `GET` | `/api/me` | 🔒 Datos del usuario actual |
+| `POST` | `/cambiar-contrasena` | 🔒 Cambiar contraseña (contraseña actual + nueva) |
 | `POST` | `/gastos` | 🔒 Registrar gasto |
 | `GET` | `/gastos?fecha=YYYY-MM-DD` | 🔒 Gastos del usuario en un día |
 | `GET` | `/gastos?mes=YYYY-MM` | 🔒 Gastos del usuario en un mes |

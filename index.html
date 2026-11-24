@@ -204,6 +204,36 @@
       </div>
       <div id="resultado-balance"></div>
     </section>
+
+    <!-- Sección: Cambiar contraseña -->
+    <section id="cambiar-contrasena">
+      <h2>Cambiar Contraseña</h2>
+      <form id="form-contrasena">
+        <div class="campo">
+          <label for="contra-actual">Contraseña actual:</label>
+          <div class="contra">
+            <input type="password" id="contra-actual" autocomplete="current-password" minlength="6" required>
+            <button type="button" class="btn-ver-contra" data-ver="contra-actual" aria-label="Ver contraseña">👁️ Ver</button>
+          </div>
+        </div>
+        <div class="campo">
+          <label for="contra-nueva">Nueva contraseña (mínimo 6 caracteres):</label>
+          <div class="contra">
+            <input type="password" id="contra-nueva" autocomplete="new-password" minlength="6" required>
+            <button type="button" class="btn-ver-contra" data-ver="contra-nueva" aria-label="Ver contraseña">👁️ Ver</button>
+          </div>
+        </div>
+        <div class="campo">
+          <label for="contra-confirmar">Confirmar nueva contraseña:</label>
+          <div class="contra">
+            <input type="password" id="contra-confirmar" autocomplete="new-password" minlength="6" required>
+            <button type="button" class="btn-ver-contra" data-ver="contra-confirmar" aria-label="Ver contraseña">👁️ Ver</button>
+          </div>
+        </div>
+        <button type="submit" id="btn-cambiar-contrasena">Actualizar contraseña</button>
+      </form>
+      <p id="mensaje-contrasena" class="auth-mensaje"></p>
+    </section>
   </main>
 
   <!-- Mensaje de bienvenida: se muestra al entrar, antes de abrir la app -->

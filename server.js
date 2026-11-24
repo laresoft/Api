@@ -273,6 +273,42 @@ app.get('/api/me', requerirAuth, async (req, res) => {
   }
 });
 
+// Cambiar la contraseña del usuario actual
+app.post('/cambiar-contrasena', requerirAuth, async (req, res) => {
+  const actual = String(req.body.contrasenaActual || '');
+  const nueva = String(req.body.contrasenaNueva || '');
+
+  if (!actual || nueva.length < 6) {
+    return res.status(400).json({ error: 'Completá la contraseña actual y la nueva (mínimo 6 caracteres)' });
+  }
+  if (actual === nueva) {
+    return res.status(400).json({ error: 'La nueva contraseña debe ser diferente de la actual' });
+  }
+
+  try {
+    const resultado = await pool.query(
+      'SELECT password_hash FROM usuarios WHERE id = $1',
+      [req.usuario.id]
+    );
+    if (resultado.rowCount === 0) {
+      return res.status(401).json({ error: 'Usuario no encontrado. Iniciá sesión nuevamente.' });
+    }
+
+    // Usamos 400 (no 401) para que el frontend no cierre la sesión por un error de tipeo
+    if (!await verificarContrasena(actual, resultado.rows[0].password_hash)) {
+      return res.status(400).json({ error: 'La contraseña actual es incorrecta' });
+    }
+
+    const hash = await hashearContrasena(nueva);
+    await pool.query('UPDATE usuarios SET password_hash = $1 WHERE id = $2', [hash, req.usuario.id]);
+
+    res.json({ mensaje: 'Contraseña actualizada correctamente' });
+  } catch (error) {
+    console.error('Error al cambiar contraseña:', error.message);
+    res.status(500).json({ error: 'No se pudo actualizar la contraseña' });
+  }
+});
+
 // --- Gastos ---
 
 // Registrar un nuevo gasto
