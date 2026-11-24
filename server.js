@@ -58,17 +58,74 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Envío de correos para recuperar la contraseña (Gmail con contraseña de aplicación)
+// Envío de correos para recuperar la contraseña.
+// Render Free bloquea los puertos SMTP (25/465/587), así que en producción se usa
+// la API HTTPS de Brevo. Gmail SMTP queda como alternativa para uso local.
 const URL_APP = process.env.APP_URL || 'https://cuentas-k956.onrender.com';
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const EMAIL_REMITENTE = process.env.EMAIL_USER || 'laresoftuy@gmail.com';
+
 const transportista = (process.env.EMAIL_USER && process.env.EMAIL_APP_PASSWORD)
   ? nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_APP_PASSWORD
-      }
+      },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000
     })
   : null;
+
+async function enviarCorreoRecuperacion({ para, nombre, enlace }) {
+  const asunto = 'Restablecé tu contraseña de Cuentas';
+  const texto = `Hola ${nombre}:\n\nRecibimos un pedido para cambiar tu contraseña.\n\nAbrí este enlace (válido 30 minutos):\n${enlace}\n\nSi no lo pediste, ignorá este correo.\n`;
+  const html = `<div style="font-family:system-ui,sans-serif;max-width:520px;margin:auto">
+    <h2>Restablecé tu contraseña</h2>
+    <p>Hola ${nombre}, recibimos un pedido para cambiar tu contraseña en Cuentas.</p>
+    <p style="margin:24px 0">
+      <a href="${enlace}" style="background:#27ae60;color:#fff;padding:12px 18px;border-radius:6px;text-decoration:none;display:inline-block">Nueva contraseña</a>
+    </p>
+    <p>El enlace vence en 30 minutos y solo se puede usar una vez.</p>
+    <p>Si no lo pediste, podés ignorar este correo.</p>
+  </div>`;
+
+  if (BREVO_API_KEY) {
+    const respuesta = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': BREVO_API_KEY
+      },
+      body: JSON.stringify({
+        sender: { name: 'Cuentas', email: EMAIL_REMITENTE },
+        to: [{ email: para, name: nombre }],
+        subject: asunto,
+        textContent: texto,
+        htmlContent: html
+      })
+    });
+
+    if (!respuesta.ok) {
+      const detalle = (await respuesta.text()).slice(0, 200);
+      throw new Error(`Brevo HTTP ${respuesta.status}: ${detalle}`);
+    }
+    return;
+  }
+
+  if (!transportista) {
+    throw new Error('No hay proveedor de email configurado');
+  }
+
+  await transportista.sendMail({
+    from: `"Cuentas" <${EMAIL_REMITENTE}>`,
+    to: para,
+    subject: asunto,
+    text: texto,
+    html: html
+  });
+}
 
 const scrypt = promisify(crypto.scrypt);
 const DURACION_SESION = 60 * 60 * 24 * 30; // 30 días, en segundos
@@ -399,28 +456,11 @@ app.post('/recuperar', async (req, res) => {
         [u.id, hashToken(token), new Date(Date.now() + DURACION_RECUPERACION)]
       );
 
-      if (!transportista) {
-        console.error('ERROR: EMAIL_USER / EMAIL_APP_PASSWORD no configurados');
-      } else {
-        const enlace = `${URL_APP}/restablecer?token=${token}`;
-        const nombre = u.nombre || 'usuario';
-
-        await transportista.sendMail({
-          from: `"Cuentas" <${process.env.EMAIL_USER}>`,
-          to: u.email,
-          subject: 'Restablecé tu contraseña de Cuentas',
-          text: `Hola ${nombre}:\n\nRecibimos un pedido para cambiar tu contraseña.\n\nAbrí este enlace (válido 30 minutos):\n${enlace}\n\nSi no lo pediste, ignorá este correo.\n`,
-          html: `<div style="font-family:system-ui,sans-serif;max-width:520px;margin:auto">
-            <h2>Restablecé tu contraseña</h2>
-            <p>Hola ${nombre}, recibimos un pedido para cambiar tu contraseña en Cuentas.</p>
-            <p style="margin:24px 0">
-              <a href="${enlace}" style="background:#27ae60;color:#fff;padding:12px 18px;border-radius:6px;text-decoration:none;display:inline-block">Nueva contraseña</a>
-            </p>
-            <p>El enlace vence en 30 minutos y solo se puede usar una vez.</p>
-            <p>Si no lo pediste, podés ignorar este correo.</p>
-          </div>`
-        });
-      }
+      await enviarCorreoRecuperacion({
+        para: u.email,
+        nombre: u.nombre || 'usuario',
+        enlace: `${URL_APP}/restablecer?token=${token}`
+      });
     }
   } catch (error) {
     // No mostramos el error al usuario para no revelar si el email existe

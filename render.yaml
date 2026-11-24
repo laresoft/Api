@@ -28,3 +28,6 @@ services:
         sync: false
       - key: APP_URL
         sync: false
+      # Render Free bloquea SMTP: en producción se envía por HTTPS con Brevo
+      - key: BREVO_API_KEY
+        sync: false
