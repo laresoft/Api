@@ -289,6 +289,45 @@ button:disabled {
   background: #c0392b;
 }
 
+/* Mensaje emergente de bienvenida */
+#modal-bienvenida {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 32, 45, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.modal-contenido {
+  width: 100%;
+  max-width: 360px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px 20px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.modal-icono {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.modal-contenido h2 {
+  margin: 10px 0;
+  color: #2c3e50;
+  font-size: 1.3rem;
+}
+
+.modal-contenido p {
+  margin: 0 0 18px;
+  color: #555;
+  font-size: 0.95rem;
+}
+
 /* Est responsive */
 @media (min-width: 600px) {
   body {

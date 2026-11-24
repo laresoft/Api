@@ -72,6 +72,10 @@ const registroNombre = document.getElementById('registro-nombre');
 const registroEmail = document.getElementById('registro-email');
 const registroPassword = document.getElementById('registro-password');
 const registroConfirmar = document.getElementById('registro-confirmar');
+const modalBienvenida = document.getElementById('modal-bienvenida');
+const bienvenidaTitulo = document.getElementById('bienvenida-titulo');
+const bienvenidaMensaje = document.getElementById('bienvenida-mensaje');
+const btnBienvenidaContinuar = document.getElementById('btn-bienvenida-continuar');
 
 let mostrandoRegistro = false;
 
@@ -86,15 +90,47 @@ function mostrarApp(usuario) {
   auth.classList.add('oculto');
   app.classList.remove('oculto');
   barraUsuario.classList.remove('oculto');
-  usuarioEmail.textContent = usuario.email || '';
+  usuarioEmail.textContent = usuario.nombre || usuario.email || '';
 }
 
 function cerrarSesion(mensaje = '') {
   localStorage.removeItem(CLAVE_TOKEN);
+  modalBienvenida.classList.add('oculto');
   formLogin.reset();
   formRegistro.reset();
   mostrarAuth(mensaje);
 }
+
+// Nombre a mostrar en el saludo (si no cargó nombre, usamos el email)
+function nombreParaSaludo(usuario) {
+  let nombre = String(usuario.nombre || '').trim();
+  if (!nombre) nombre = String(usuario.email || '').split('@')[0] || 'usuario';
+  return nombre.charAt(0).toUpperCase() + nombre.slice(1);
+}
+
+function abrirBienvenida(usuario, esRegistro) {
+  const nombre = nombreParaSaludo(usuario);
+  bienvenidaTitulo.textContent = esRegistro
+    ? `¡Bienvenido, ${nombre}!`
+    : `¡Hola de nuevo, ${nombre}!`;
+  bienvenidaMensaje.textContent = esRegistro
+    ? 'Tu cuenta ya está lista. Desde ahora podés registrar tus gastos e ingresos.'
+    : 'Qué gusto verte otra vez. Todo sigue donde lo dejaste.';
+  modalBienvenida.classList.remove('oculto');
+  btnBienvenidaContinuar.focus();
+}
+
+btnBienvenidaContinuar.addEventListener('click', () => {
+  modalBienvenida.classList.add('oculto');
+  const usuario = sesionPendiente;
+  sesionPendiente = null;
+  if (usuario) {
+    mostrarApp(usuario);
+    cargarDatos();
+  }
+});
+
+let sesionPendiente = null;
 
 btnAlternarAuth.addEventListener('click', () => {
   mostrandoRegistro = !mostrandoRegistro;
@@ -122,7 +158,7 @@ formLogin.addEventListener('submit', async (e) => {
     });
     guardarToken(datos.token);
     loginPassword.value = '';
-    await entrarApp(datos.usuario);
+    await entrarApp(datos.usuario, { bienvenida: true, esRegistro: false });
   } catch (error) {
     authMensaje.textContent = error.message;
   } finally {
@@ -153,7 +189,7 @@ formRegistro.addEventListener('submit', async (e) => {
     guardarToken(datos.token);
     registroPassword.value = '';
     registroConfirmar.value = '';
-    await entrarApp(datos.usuario);
+    await entrarApp(datos.usuario, { bienvenida: true, esRegistro: true });
   } catch (error) {
     authMensaje.textContent = error.message;
   } finally {
@@ -165,8 +201,20 @@ btnCerrarSesion.addEventListener('click', () => {
   cerrarSesion('Sesión cerrada. Ingresá para continuar.');
 });
 
-async function entrarApp(usuario) {
+async function entrarApp(usuario, opciones = {}) {
+  const { bienvenida = false, esRegistro = false } = opciones;
+
+  if (bienvenida) {
+    sesionPendiente = usuario;
+    abrirBienvenida(usuario, esRegistro);
+    return;
+  }
+
   mostrarApp(usuario);
+  await cargarDatos();
+}
+
+async function cargarDatos() {
   await Promise.all([cargarGastos(), cargarIngresos(), calcularBalance()]);
 }
 
