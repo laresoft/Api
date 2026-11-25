@@ -482,7 +482,7 @@ formGasto.addEventListener('submit', async (e) => {
   const fecha = document.getElementById('fecha-gasto').value;
   const categoria = categoriaGasto.value;
   const descripcion = descripcionGasto.value;
-  const monto = parseFloat(document.getElementById('monto-gasto').value);
+  const monto = Number(document.getElementById('monto-gasto').value);
 
   if (!fecha || !categoria || !descripcion || isNaN(monto) || monto <= 0) {
     alert('Por favor complete todos los campos correctamente');
@@ -666,7 +666,7 @@ formIngreso.addEventListener('submit', async (e) => {
 
   const fecha = document.getElementById('fecha-ingreso').value;
   const descripcion = descripcionIngreso.value;
-  const monto = parseFloat(document.getElementById('monto-ingreso').value);
+  const monto = Number(document.getElementById('monto-ingreso').value);
 
   if (!fecha || !descripcion || isNaN(monto) || monto <= 0) {
     alert('Por favor complete todos los campos correctamente');

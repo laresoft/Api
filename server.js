@@ -1,5 +1,6 @@
 const express = require('express');
-const { Pool } = require('pg');
+const pg = require('pg');
+const { Pool } = pg;
 const cors = require('cors');
 const os = require('os');
 const crypto = require('crypto');
@@ -57,6 +58,10 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
+
+// Postgres devuelve las columnas NUMERIC como string. Las convertimos a número
+// para que el frontend pueda sumar y formatear montos con decimales normalmente.
+pg.types.setTypeParser(1700, Number);
 
 // Envío de correos para recuperar la contraseña.
 // Render Free bloquea los puertos SMTP (25/465/587), así que en producción se usa
@@ -242,6 +247,20 @@ async function inicializarDB() {
 
   await pool.query('CREATE INDEX IF NOT EXISTS idx_gastos_usuario ON gastos(usuario_id)');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_ingresos_usuario ON ingresos(usuario_id)');
+
+  // Los montos permiten decimales: si alguna columna quedó como entero, la convertimos.
+  // Se ejecuta en cada arranque; si ya es NUMERIC no hace nada.
+  for (const tabla of ['gastos', 'ingresos']) {
+    const columna = await pool.query(
+      `SELECT data_type FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = $1 AND column_name = 'monto'`,
+      [tabla]
+    );
+    if (columna.rowCount && ['integer', 'bigint', 'smallint'].includes(columna.rows[0].data_type)) {
+      await pool.query(`ALTER TABLE ${tabla} ALTER COLUMN monto TYPE NUMERIC(12,2) USING monto::numeric`);
+      console.log(`  Migrado ${tabla}.monto a NUMERIC(12,2)`);
+    }
+  }
 
   // Tokens de un solo uso para recuperar la contraseña
   await pool.query(`
@@ -533,10 +552,12 @@ app.post('/restablecer', async (req, res) => {
 
 // Registrar un nuevo gasto
 app.post('/gastos', requerirAuth, async (req, res) => {
-  const { fecha, categoria, descripcion, monto } = req.body;
+  const { fecha, categoria, descripcion } = req.body;
+  const monto = Number(req.body.monto);
 
-  if (!fecha || !categoria || !descripcion || monto === undefined || monto <= 0) {
-    return res.status(400).json({ error: 'Todos los campos son obligatorios y el monto debe ser mayor a 0' });
+  if (!fecha || !categoria || !descripcion || !Number.isFinite(monto) || monto <= 0 ||
+      !/^\d+(\.\d{1,2})?$/.test(String(req.body.monto))) {
+    return res.status(400).json({ error: 'Todos los campos son obligatorios y el monto debe ser mayor a 0 (hasta 2 decimales)' });
   }
 
   if (!validarFecha(fecha, res)) return;
@@ -620,10 +641,12 @@ app.get('/gastos', requerirAuth, async (req, res) => {
 
 // Registrar un nuevo ingreso
 app.post('/ingresos', requerirAuth, async (req, res) => {
-  const { fecha, descripcion, monto } = req.body;
+  const { fecha, descripcion } = req.body;
+  const monto = Number(req.body.monto);
 
-  if (!fecha || !descripcion || monto === undefined || monto <= 0) {
-    return res.status(400).json({ error: 'Todos los campos son obligatorios y el monto debe ser mayor a 0' });
+  if (!fecha || !descripcion || !Number.isFinite(monto) || monto <= 0 ||
+      !/^\d+(\.\d{1,2})?$/.test(String(req.body.monto))) {
+    return res.status(400).json({ error: 'Todos los campos son obligatorios y el monto debe ser mayor a 0 (hasta 2 decimales)' });
   }
 
   if (!validarFecha(fecha, res)) return;
