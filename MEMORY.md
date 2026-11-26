@@ -5,7 +5,7 @@ Memoria del proyecto entre sesiones. Máximo ~50 líneas: resumí o eliminá lo 
 - App publicada en Render (`https://cuentas-k956.onrender.com`) con PostgreSQL en Supabase.
 - Funciona en Android (APK Capacitor) y en iPhone como PWA agregada desde Safari.
 - Montos de gastos e ingresos aceptan hasta 2 decimales; balance y listados los muestran con `toFixed(2)`.
-- Reportes PDF de gastos e ingresos, por día o por mes, con detalle + total y balance en modo mes. Descarga directa en navegadores; en la APK se envían por correo al usuario.
+- Reportes PDF de gastos e ingresos, por día o por mes, con detalle + total y balance en modo mes. Los meses incluyen un comentario económico breve (flujo, margen/déficit y categoría de mayor peso). Descarga directa en navegadores; en la APK se envían por correo al usuario.
 - `AGENTS.md` y `MEMORY.md` están en la raíz del repo y ya fueron pusheados.
 
 ## Decisiones (y por qué)

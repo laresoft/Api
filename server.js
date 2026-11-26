@@ -754,6 +754,45 @@ function parametrosReporte(req, res) {
   return { tipo, modo, valor };
 }
 
+// Lectura breve del período, con tono de análisis económico
+function resumenEconomico(tipo, filas, ingresos, gastos) {
+  const balance = ingresos - gastos;
+
+  if (ingresos === 0 && gastos === 0) {
+    return 'El mes no registra ingresos ni gastos, por lo que no hay movimientos para analizar.';
+  }
+
+  let texto;
+
+  if (ingresos === 0) {
+    texto = `El mes no registró ingresos frente a $${gastos.toFixed(2)} de gastos, por lo que el resultado fue negativo. Sin entradas que compensen los egresos, el flujo del período fue deficitario.`;
+  } else if (gastos === 0) {
+    texto = `El mes no registró gastos: los ingresos ($${ingresos.toFixed(2)}) se conservaron íntegramente como superávit. Al no haber egresos, la tasa de ahorro del período no es representativa.`;
+  } else if (balance >= 0) {
+    const absorcion = (gastos / ingresos) * 100;
+    const margen = (balance / ingresos) * 100;
+    texto = `Los gastos absorbieron el ${absorcion.toFixed(1)}% de los ingresos y dejaron un superávit de $${balance.toFixed(2)}, equivalente a un margen del ${margen.toFixed(1)}% sobre los ingresos. El flujo del mes fue positivo.`;
+  } else {
+    const deficit = -balance;
+    texto = `Los gastos superaron a los ingresos en un ${((deficit / ingresos) * 100).toFixed(1)}%, con un déficit de $${deficit.toFixed(2)}. El mes cerró con un flujo negativo.`;
+  }
+
+  if (tipo === 'gastos' && filas.length) {
+    const porCategoria = {};
+    filas.forEach(fila => {
+      const categoria = fila.categoria || 'Sin categoría';
+      porCategoria[categoria] = (porCategoria[categoria] || 0) + Number(fila.monto);
+    });
+
+    const [principal, montoPrincipal] = Object.entries(porCategoria)
+      .sort((a, b) => b[1] - a[1])[0];
+    const participacion = gastos > 0 ? (montoPrincipal / gastos) * 100 : 0;
+    texto += ` La partida de mayor peso fue ${principal} ($${montoPrincipal.toFixed(2)}, ${participacion.toFixed(1)}% del total).`;
+  }
+
+  return texto;
+}
+
 // Generar el PDF en memoria: sirve tanto para descargarlo como para adjuntarlo
 async function generarPDFReporte({ tipo, modo, valor, usuarioId, email }) {
   const columnas = tipo === 'gastos'
@@ -843,6 +882,7 @@ async function generarPDFReporte({ tipo, modo, valor, usuarioId, email }) {
     if (filas.length === 0) {
       doc.font('Helvetica').fontSize(10)
         .text('No hay registros para el período seleccionado.', xFecha, y);
+      y += 16;
     }
 
     if (modo === 'mes') {
@@ -854,6 +894,21 @@ async function generarPDFReporte({ tipo, modo, valor, usuarioId, email }) {
       doc.text(`Ingresos: $${ingresos.toFixed(2)}`, xFecha, y); y += 16;
       doc.text(`Gastos: $${gastos.toFixed(2)}`, xFecha, y); y += 16;
       doc.text(`Balance: $${(ingresos - gastos).toFixed(2)}`, xFecha, y);
+
+      y += 26;
+      doc.moveTo(xFecha, y - 12).lineTo(xFecha + ancho, y - 12).stroke();
+
+      const comentario = resumenEconomico(tipo, filas, ingresos, gastos);
+      doc.font('Helvetica').fontSize(9);
+      const alturaComentario = doc.heightOfString(comentario, { width: ancho });
+
+      if (y + alturaComentario + 20 > doc.page.height - doc.page.margins.bottom) {
+        doc.addPage();
+        y = doc.page.margins.top;
+      }
+
+      doc.font('Helvetica-Bold').fontSize(10).text('Comentario', xFecha, y);
+      doc.font('Helvetica').fontSize(9).text(comentario, xFecha, y + 16, { width: ancho });
     }
 
     doc.end();
