@@ -382,6 +382,17 @@ button:disabled {
   background: #c0392b;
 }
 
+.btn-perfil {
+  width: auto;
+  padding: 5px 10px;
+  background: #3498db;
+  font-size: 0.8rem;
+}
+
+.btn-perfil:hover {
+  background: #2980b9;
+}
+
 /* Mensaje emergente de bienvenida */
 #modal-bienvenida {
   position: fixed;
@@ -424,6 +435,38 @@ button:disabled {
   margin: 0 0 18px;
   color: #555;
   font-size: 0.95rem;
+}
+
+/* Perfil: modal para cambiar contraseña */
+#modal-perfil {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 32, 45, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.modal-perfil-contenido {
+  max-width: 420px;
+  text-align: left;
+}
+
+.modal-perfil-contenido h2 {
+  text-align: center;
+}
+
+.perfil-email {
+  text-align: center;
+  font-weight: 700;
+  color: #2c3e50;
+  word-break: break-word;
+}
+
+.modal-perfil-contenido .btn-secundario {
+  margin-top: 10px;
 }
 
 /* Est responsive */

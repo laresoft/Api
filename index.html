@@ -18,6 +18,7 @@
     <h1>💰 Control de Gastos e Ingresos</h1>
     <div id="barra-usuario" class="oculto">
       <span id="usuario-email"></span>
+      <button type="button" id="btn-perfil" class="btn-perfil" aria-haspopup="dialog" aria-controls="modal-perfil" aria-expanded="false">Perfil</button>
       <button type="button" id="btn-cerrar-sesion" class="btn-cerrar">Cerrar sesión</button>
     </div>
   </header>
@@ -217,35 +218,6 @@
       <div id="resultado-balance"></div>
     </section>
 
-    <!-- Sección: Cambiar contraseña -->
-    <section id="cambiar-contrasena">
-      <h2>Cambiar Contraseña</h2>
-      <form id="form-contrasena">
-        <div class="campo">
-          <label for="contra-actual">Contraseña actual:</label>
-          <div class="contra">
-            <input type="password" id="contra-actual" autocomplete="current-password" minlength="6" required>
-            <button type="button" class="btn-ver-contra" data-ver="contra-actual" aria-label="Ver contraseña">👁️ Ver</button>
-          </div>
-        </div>
-        <div class="campo">
-          <label for="contra-nueva">Nueva contraseña (mínimo 6 caracteres):</label>
-          <div class="contra">
-            <input type="password" id="contra-nueva" autocomplete="new-password" minlength="6" required>
-            <button type="button" class="btn-ver-contra" data-ver="contra-nueva" aria-label="Ver contraseña">👁️ Ver</button>
-          </div>
-        </div>
-        <div class="campo">
-          <label for="contra-confirmar">Confirmar nueva contraseña:</label>
-          <div class="contra">
-            <input type="password" id="contra-confirmar" autocomplete="new-password" minlength="6" required>
-            <button type="button" class="btn-ver-contra" data-ver="contra-confirmar" aria-label="Ver contraseña">👁️ Ver</button>
-          </div>
-        </div>
-        <button type="submit" id="btn-cambiar-contrasena">Actualizar contraseña</button>
-      </form>
-      <p id="mensaje-contrasena" class="auth-mensaje"></p>
-    </section>
   </main>
 
   <!-- Pantalla: pedir el enlace de recuperación -->
@@ -299,6 +271,40 @@
       <h2 id="bienvenida-titulo">¡Bienvenido!</h2>
       <p id="bienvenida-mensaje"></p>
       <button type="button" id="btn-bienvenida-continuar">Continuar</button>
+    </div>
+  </div>
+
+  <!-- Perfil: cambiar contraseña sin salir de la app -->
+  <div id="modal-perfil" class="oculto" role="dialog" aria-modal="true" aria-labelledby="perfil-titulo">
+    <div class="modal-contenido modal-perfil-contenido">
+      <h2 id="perfil-titulo">Perfil</h2>
+      <p id="perfil-email" class="perfil-email"></p>
+      <form id="form-contrasena">
+        <div class="campo">
+          <label for="contra-actual">Contraseña actual:</label>
+          <div class="contra">
+            <input type="password" id="contra-actual" autocomplete="current-password" minlength="6" required>
+            <button type="button" class="btn-ver-contra" data-ver="contra-actual" aria-label="Ver contraseña">👁️ Ver</button>
+          </div>
+        </div>
+        <div class="campo">
+          <label for="contra-nueva">Nueva contraseña (mínimo 6 caracteres):</label>
+          <div class="contra">
+            <input type="password" id="contra-nueva" autocomplete="new-password" minlength="6" required>
+            <button type="button" class="btn-ver-contra" data-ver="contra-nueva" aria-label="Ver contraseña">👁️ Ver</button>
+          </div>
+        </div>
+        <div class="campo">
+          <label for="contra-confirmar">Confirmar nueva contraseña:</label>
+          <div class="contra">
+            <input type="password" id="contra-confirmar" autocomplete="new-password" minlength="6" required>
+            <button type="button" class="btn-ver-contra" data-ver="contra-confirmar" aria-label="Ver contraseña">👁️ Ver</button>
+          </div>
+        </div>
+        <button type="submit" id="btn-cambiar-contrasena">Actualizar contraseña</button>
+      </form>
+      <p id="mensaje-contrasena" class="auth-mensaje"></p>
+      <button type="button" id="btn-cerrar-perfil" class="btn-secundario">Cerrar</button>
     </div>
   </div>
 

@@ -84,6 +84,7 @@ const auth = document.getElementById('auth');
 const app = document.getElementById('app');
 const barraUsuario = document.getElementById('barra-usuario');
 const usuarioEmail = document.getElementById('usuario-email');
+const btnPerfil = document.getElementById('btn-perfil');
 const btnCerrarSesion = document.getElementById('btn-cerrar-sesion');
 const authTitulo = document.getElementById('auth-titulo');
 const authMensaje = document.getElementById('auth-mensaje');
@@ -103,6 +104,9 @@ const modalBienvenida = document.getElementById('modal-bienvenida');
 const bienvenidaTitulo = document.getElementById('bienvenida-titulo');
 const bienvenidaMensaje = document.getElementById('bienvenida-mensaje');
 const btnBienvenidaContinuar = document.getElementById('btn-bienvenida-continuar');
+const modalPerfil = document.getElementById('modal-perfil');
+const perfilEmail = document.getElementById('perfil-email');
+const btnCerrarPerfil = document.getElementById('btn-cerrar-perfil');
 
 // Pantallas de recuperación de contraseña
 const olvide = document.getElementById('olvide');
@@ -207,9 +211,31 @@ function mostrarApp(usuario) {
   usuarioEmail.textContent = usuario.nombre || usuario.email || '';
 }
 
+function abrirPerfil() {
+  perfilEmail.textContent = usuarioEmail.textContent || '';
+  formContrasena.reset();
+  mensajeContrasena.textContent = '';
+  mensajeContrasena.classList.remove('ok');
+  ocultarContrasenas();
+  modalPerfil.classList.remove('oculto');
+  btnPerfil.setAttribute('aria-expanded', 'true');
+  contraActual.focus();
+}
+
+function cerrarPerfil(devolverFoco = true) {
+  modalPerfil.classList.add('oculto');
+  btnPerfil.setAttribute('aria-expanded', 'false');
+  formContrasena.reset();
+  mensajeContrasena.textContent = '';
+  mensajeContrasena.classList.remove('ok');
+  ocultarContrasenas();
+  if (devolverFoco) btnPerfil.focus();
+}
+
 function cerrarSesion(mensaje = '') {
   localStorage.removeItem(CLAVE_TOKEN);
   modalBienvenida.classList.add('oculto');
+  cerrarPerfil(false);
   olvide.classList.add('oculto');
   restablecer.classList.add('oculto');
   formLogin.reset();
@@ -412,6 +438,15 @@ formRegistro.addEventListener('submit', async (e) => {
 
 btnCerrarSesion.addEventListener('click', () => {
   cerrarSesion('Sesión cerrada. Ingresá para continuar.');
+});
+
+btnPerfil.addEventListener('click', abrirPerfil);
+btnCerrarPerfil.addEventListener('click', () => cerrarPerfil());
+modalPerfil.addEventListener('click', (e) => {
+  if (e.target === modalPerfil) cerrarPerfil();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !modalPerfil.classList.contains('oculto')) cerrarPerfil();
 });
 
 async function entrarApp(usuario, opciones = {}) {
@@ -869,6 +904,13 @@ formContrasena.addEventListener('submit', async (e) => {
         contrasenaNueva: contraNueva.value
       })
     });
+    // La contraseña guardada en el dispositivo debe dejar de ser la vieja.
+    if (recordarPassword.checked) {
+      localStorage.setItem(CLAVE_RECORDAR, '1');
+      localStorage.setItem(CLAVE_PASSWORD, contraNueva.value);
+    } else {
+      localStorage.removeItem(CLAVE_PASSWORD);
+    }
     formContrasena.reset();
     ocultarContrasenas();
     mensajeContrasena.textContent = `${data.mensaje} Ya podés usarla para entrar.`;
