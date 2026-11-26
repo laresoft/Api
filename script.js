@@ -52,6 +52,29 @@ async function apiJSON(ruta, opciones = {}) {
   return datos;
 }
 
+// Igual que apiJSON, pero para respuestas binarias (PDF)
+async function apiBlob(ruta) {
+  const headers = {};
+  const token = obtenerToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  let respuesta;
+  try {
+    respuesta = await fetch(`${API_BASE}${ruta}`, { headers });
+  } catch (error) {
+    throw new Error('No se pudo conectar con el servidor. Revisá tu conexión.');
+  }
+
+  if (!respuesta.ok) {
+    if (respuesta.status === 401) cerrarSesion('Tu sesión venció. Iniciá sesión nuevamente.');
+    let datos = {};
+    try { datos = await respuesta.json(); } catch (error) { /* sin JSON */ }
+    throw new Error(datos.error || 'No se pudo generar el reporte');
+  }
+
+  return respuesta.blob();
+}
+
 // --- Pantalla de acceso ---
 
 const auth = document.getElementById('auth');
@@ -407,6 +430,7 @@ const campoMes = document.getElementById('campo-mes');
 const fechaLista = document.getElementById('fecha-lista');
 const mesLista = document.getElementById('mes-lista');
 const resultadoGastos = document.getElementById('resultado-gastos');
+const btnPdfGastos = document.getElementById('btn-pdf-gastos');
 
 // Elementos del DOM para Ingresos
 const formIngreso = document.getElementById('form-ingreso');
@@ -419,6 +443,7 @@ const campoIngresoMes = document.getElementById('campo-ingreso-mes');
 const fechaListaIngreso = document.getElementById('fecha-lista-ingreso');
 const mesListaIngreso = document.getElementById('mes-lista-ingreso');
 const resultadoIngresos = document.getElementById('resultado-ingresos');
+const btnPdfIngresos = document.getElementById('btn-pdf-ingresos');
 const mesBalance = document.getElementById('mes-balance');
 const resultadoBalance = document.getElementById('resultado-balance');
 
@@ -659,6 +684,46 @@ async function eliminarIngreso(id) {
     alert(error.message);
   }
 }
+
+// Descargar el PDF con el mismo modo y período que esté activo en la lista
+async function descargarReporte(tipo) {
+  const esGasto = tipo === 'gastos';
+  const modo = esGasto ? modoSeleccionado() : modoIngresoSeleccionado();
+  const valor = esGasto
+    ? (modo === 'mes' ? mesLista.value : fechaLista.value)
+    : (modo === 'mes' ? mesListaIngreso.value : fechaListaIngreso.value);
+
+  if (!valor) {
+    alert(modo === 'mes' ? 'Elegí un mes para generar el PDF.' : 'Elegí una fecha para generar el PDF.');
+    return;
+  }
+
+  const boton = esGasto ? btnPdfGastos : btnPdfIngresos;
+  const textoOriginal = boton.textContent;
+  boton.disabled = true;
+  boton.textContent = '⏳ Generando...';
+
+  try {
+    const consulta = `tipo=${tipo}&modo=${modo}&valor=${encodeURIComponent(valor)}`;
+    const blob = await apiBlob(`/reporte?${consulta}`);
+    const url = URL.createObjectURL(blob);
+    const enlace = document.createElement('a');
+    enlace.href = url;
+    enlace.download = `reporte-${tipo}-${valor}.pdf`;
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    boton.disabled = false;
+    boton.textContent = textoOriginal;
+  }
+}
+
+btnPdfGastos.addEventListener('click', () => descargarReporte('gastos'));
+btnPdfIngresos.addEventListener('click', () => descargarReporte('ingresos'));
 
 // Manejar formulario de ingreso
 formIngreso.addEventListener('submit', async (e) => {

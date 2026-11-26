@@ -6,6 +6,7 @@ const os = require('os');
 const crypto = require('crypto');
 const path = require('path');
 const nodemailer = require('nodemailer');
+const PDFDocument = require('pdfkit');
 const { promisify } = require('util');
 
 require('dotenv').config();
@@ -737,6 +738,123 @@ app.get('/balance', requerirAuth, async (req, res) => {
   } catch (error) {
     console.error('Error calculando balance:', error.message);
     res.status(500).json({ error: 'No se pudo calcular el balance' });
+  }
+});
+
+// Generar un reporte PDF de gastos o ingresos, solo del usuario autenticado
+app.get('/reporte', requerirAuth, async (req, res) => {
+  const { tipo, modo, valor } = req.query;
+
+  const formatoValor = modo === 'fecha' ? /^\d{4}-\d{2}-\d{2}$/ : /^\d{4}-\d{2}$/;
+  if (!['gastos', 'ingresos'].includes(tipo) || !['fecha', 'mes'].includes(modo) ||
+      typeof valor !== 'string' || !formatoValor.test(valor)) {
+    return res.status(400).json({ error: 'Parámetros del reporte no válidos' });
+  }
+
+  const tabla = tipo;
+  const columnas = tipo === 'gastos'
+    ? 'id, fecha, categoria, descripcion, monto, tipo'
+    : 'id, fecha, descripcion, monto';
+  const params = [req.usuario.id];
+  let where = ' WHERE usuario_id = $1';
+
+  if (modo === 'fecha') {
+    params.push(valor);
+    where += ` AND fecha = $${params.length}`;
+  } else {
+    params.push(`${valor}%`);
+    where += ` AND fecha LIKE $${params.length}`;
+  }
+
+  try {
+    const consultas = [pool.query(
+      `SELECT ${columnas} FROM ${tabla}${where} ORDER BY fecha DESC, id DESC`, params
+    )];
+
+    if (modo === 'mes') {
+      const otraTabla = tipo === 'gastos' ? 'ingresos' : 'gastos';
+      consultas.push(pool.query(
+        `SELECT COALESCE(SUM(monto), 0) AS total FROM ${otraTabla}${where}`, params
+      ));
+    }
+
+    const resultados = await Promise.all(consultas);
+    const filas = resultados[0].rows;
+    const total = filas.reduce((suma, fila) => suma + Number(fila.monto), 0);
+    const periodo = modo === 'mes' ? `Mes ${valor}` : `Día ${valor}`;
+    const emision = new Date().toISOString().slice(0, 10);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="reporte-${tipo}-${valor}.pdf"`);
+
+    const doc = new PDFDocument({ size: 'A4', margin: 45 });
+    doc.pipe(res);
+
+    const ancho = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    const xFecha = 45;
+    const xDescripcion = 130;
+    const xMonto = 45 + ancho - 85;
+    const anchoDescripcion = xMonto - xDescripcion - 10;
+
+    doc.font('Helvetica-Bold').fontSize(18).text('Cuentas', { align: 'center' });
+    doc.fontSize(12).text(`Reporte de ${tipo}`, { align: 'center' });
+    doc.font('Helvetica').fontSize(10)
+      .text(`${periodo}  |  Emitido: ${emision}  |  Usuario: ${req.usuario.email || '-'}`, { align: 'center' });
+
+    let y = doc.y + 16;
+    doc.font('Helvetica-Bold').fontSize(9);
+    doc.text('Fecha', xFecha, y, { width: 80 });
+    doc.text('Descripción', xDescripcion, y, { width: anchoDescripcion });
+    doc.text('Monto', xMonto, y, { width: 85, align: 'right' });
+    y += 16;
+    doc.moveTo(xFecha, y - 4).lineTo(xFecha + ancho, y - 4).stroke();
+    doc.font('Helvetica').fontSize(9);
+
+    filas.forEach((fila) => {
+      const descripcion = tipo === 'gastos'
+        ? `${fila.categoria}: ${fila.descripcion} (${fila.tipo})`
+        : fila.descripcion;
+      const altura = doc.heightOfString(descripcion, { width: anchoDescripcion }) + 8;
+
+      if (y + altura > doc.page.height - doc.page.margins.bottom - 70) {
+        doc.addPage();
+        y = doc.page.margins.top;
+      }
+
+      doc.text(fila.fecha, xFecha, y, { width: 80 });
+      doc.text(descripcion, xDescripcion, y, { width: anchoDescripcion });
+      doc.text(`$${Number(fila.monto).toFixed(2)}`, xMonto, y, { width: 85, align: 'right' });
+      y += altura;
+    });
+
+    y += 6;
+    doc.moveTo(xFecha, y).lineTo(xFecha + ancho, y).stroke();
+    y += 12;
+    doc.font('Helvetica-Bold').fontSize(10);
+    doc.text(`${filas.length} ${tipo === 'gastos' ? 'gasto' : 'ingreso'}${filas.length === 1 ? '' : 's'} registrado${filas.length === 1 ? '' : 's'}`, xFecha, y);
+    doc.text(`Total: $${total.toFixed(2)}`, xMonto - 60, y, { width: 145, align: 'right' });
+    y += 20;
+
+    if (filas.length === 0) {
+      doc.font('Helvetica').fontSize(10)
+        .text('No hay registros para el período seleccionado.', xFecha, y);
+    }
+
+    if (modo === 'mes') {
+      const otroTotal = Number(resultados[1].rows[0].total);
+      const ingresos = tipo === 'gastos' ? total : otroTotal;
+      const gastos = tipo === 'gastos' ? otroTotal : total;
+
+      doc.font('Helvetica-Bold').fontSize(10);
+      doc.text(`Ingresos: $${ingresos.toFixed(2)}`, xFecha, y); y += 16;
+      doc.text(`Gastos: $${gastos.toFixed(2)}`, xFecha, y); y += 16;
+      doc.text(`Balance: $${(ingresos - gastos).toFixed(2)}`, xFecha, y);
+    }
+
+    doc.end();
+  } catch (error) {
+    console.error('Error al generar reporte:', error.message);
+    res.status(500).json({ error: 'No se pudo generar el reporte' });
   }
 });
 

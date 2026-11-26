@@ -1,7 +1,7 @@
 // Service Worker básico: guarda la interfaz en caché para que cargue rápido.
 // Los datos siguen viniendo siempre de la API (no se guardan aquí).
 
-const NOMBRE_CACHE = 'cuentas-v8';
+const NOMBRE_CACHE = 'cuentas-v9';
 const ARCHIVOS = ['/', '/index.html', '/style.css', '/script.js', '/manifest.webmanifest',
                   '/icon-192.png', '/icon-512.png'];
 
@@ -27,7 +27,8 @@ self.addEventListener('fetch', (evento) => {
   const url = new URL(evento.request.url);
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/gastos') ||
       url.pathname.startsWith('/ingresos') || url.pathname.startsWith('/balance') ||
-      url.pathname.startsWith('/login') || url.pathname.startsWith('/registro')) return;
+      url.pathname.startsWith('/reporte') || url.pathname.startsWith('/login') ||
+      url.pathname.startsWith('/registro')) return;
 
   evento.respondWith(
     caches.match(evento.request).then(respuesta =>
