@@ -14,8 +14,9 @@ Memoria del proyecto entre sesiones. Máximo ~50 líneas: resumí o eliminá lo 
 - Fecha editable en el formulario: permite registrar días pasados pero no días posteriores al actual.
 - Los cambios de esquema de la BD se aplican en `inicializarDB()` al arrancar: no hay acceso al dashboard de Supabase.
 - iPhone usa PWA (Agregar a pantalla de inicio) en vez de IPA: no requiere Mac ni cuenta de Apple Developer.
-- El service worker solo cachea archivos de interfaz; cada cambio visual exige subir `NOMBRE_CACHE` en `sw.js` (hoy `cuentas-v17`).
-- "Cambiar Contraseña" ya no es una sección de `<main>`: vive en el modal `#modal-perfil`, abierto desde el botón `Perfil` del header (entre el email y `Cerrar sesión`). Muestra el email y se cierra con botón, clic fuera o `Esc`.
+- El service worker solo cachea archivos de interfaz; cada cambio visual exige subir `NOMBRE_CACHE` en `sw.js` (hoy `cuentas-v18`).
+- "Cambiar Contraseña" ya no es una sección de `<main>`: vive en el modal `#modal-perfil`, abierto desde el botón `Perfil` del header (entre el email y `Cerrar sesión`). Título `Perfil`, nombre del usuario en grande (`usuario.nombre`, fallback al email) y correo como texto no editable con etiqueta `Correo:`. Se cierra con botón, clic fuera o `Esc`.
+- `#barra-usuario` tiene fondo claro redondeado dentro del header azul: nombre + `Perfil` + `Cerrar sesión` comparten esa banda. El header sigue siendo `sticky`.
 - Al cambiar la contraseña desde Perfil se actualiza la copia guardada en el dispositivo si "Recordar contraseña" está activa; si está desmarcada, se borra. `POST /cambiar-contrasena` no cambió.
 - El encabezado es `position: sticky` con `z-index: 100`; el modal de bienvenida usa 1000 para quedar por encima.
 - El login precarga el último email y, con la casilla "Recordar contraseña" activada por defecto, también la contraseña desde `localStorage`. Al desmarcarla se borra la contraseña guardada. Es un riesgo asumido a pedido del usuario: en un dispositivo compartido cualquiera podría verla.

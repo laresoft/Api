@@ -105,6 +105,7 @@ const bienvenidaTitulo = document.getElementById('bienvenida-titulo');
 const bienvenidaMensaje = document.getElementById('bienvenida-mensaje');
 const btnBienvenidaContinuar = document.getElementById('btn-bienvenida-continuar');
 const modalPerfil = document.getElementById('modal-perfil');
+const perfilNombre = document.getElementById('perfil-nombre');
 const perfilEmail = document.getElementById('perfil-email');
 const btnCerrarPerfil = document.getElementById('btn-cerrar-perfil');
 
@@ -124,6 +125,8 @@ const mensajeRestablecer = document.getElementById('mensaje-restablecer');
 const mensajeToken = document.getElementById('mensaje-token');
 
 let mostrandoRegistro = false;
+let usuarioNombre = '';
+let usuarioCorreo = '';
 
 // Botones "Ver / Ocultar" para poder corregir la contraseña antes de enviar
 function ocultarContrasenas() {
@@ -208,11 +211,14 @@ function mostrarApp(usuario) {
   auth.classList.add('oculto');
   app.classList.remove('oculto');
   barraUsuario.classList.remove('oculto');
-  usuarioEmail.textContent = usuario.nombre || usuario.email || '';
+  usuarioNombre = String(usuario.nombre || '').trim();
+  usuarioCorreo = String(usuario.email || '').trim();
+  usuarioEmail.textContent = usuarioNombre || usuarioCorreo || '';
 }
 
 function abrirPerfil() {
-  perfilEmail.textContent = usuarioEmail.textContent || '';
+  perfilNombre.textContent = usuarioNombre || usuarioCorreo || 'Usuario';
+  perfilEmail.textContent = usuarioCorreo || '—';
   formContrasena.reset();
   mensajeContrasena.textContent = '';
   mensajeContrasena.classList.remove('ok');
@@ -234,6 +240,8 @@ function cerrarPerfil(devolverFoco = true) {
 
 function cerrarSesion(mensaje = '') {
   localStorage.removeItem(CLAVE_TOKEN);
+  usuarioNombre = '';
+  usuarioCorreo = '';
   modalBienvenida.classList.add('oculto');
   cerrarPerfil(false);
   olvide.classList.add('oculto');
