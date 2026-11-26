@@ -698,66 +698,31 @@ function esWebViewAndroid() {
   return /Android/.test(navigator.userAgent) && /(Version\/4\.0 Chrome|; wv)/.test(navigator.userAgent);
 }
 
-function escaparHTML(texto) {
-  return String(texto).replace(/[&<>"']/g, caracter => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  })[caracter]);
+// Si la APK se recompila con @capacitor/filesystem y @capacitor/share,
+// los plugins aparecen acá y el botón guarda/comparte el PDF sin pasar por email.
+function pluginsGuardadoDisponibles() {
+  const plugins = window.Capacitor && window.Capacitor.Plugins;
+  return !!(plugins && plugins.Filesystem && plugins.Share);
 }
 
-// Mostrar una vista imprimible con los mismos datos y filtros de la lista
-async function imprimirReporte(tipo, modo, valor) {
-  if (typeof window.print !== 'function') {
-    throw new Error('Este dispositivo no puede guardar PDF. Abrí la página en Chrome.');
-  }
+function blobABase64(blob) {
+  return new Promise((resolve, reject) => {
+    const lector = new FileReader();
+    lector.onload = () => resolve(String(lector.result).split(',')[1] || '');
+    lector.onerror = () => reject(new Error('No se pudo leer el PDF'));
+    lector.readAsDataURL(blob);
+  });
+}
 
-  const consulta = modo === 'mes' ? `mes=${valor}` : `fecha=${valor}`;
-  const consultas = [apiJSON(`/${tipo}?${consulta}`)];
-  if (modo === 'mes') consultas.push(apiJSON(`/balance?mes=${valor}`));
-
-  const resultados = await Promise.all(consultas);
-  const filas = resultados[0];
-  const balance = resultados[1];
-  const total = filas.reduce((suma, fila) => suma + fila.monto, 0);
-
-  let filasHTML = filas.map(fila => {
-    const descripcion = tipo === 'gastos'
-      ? `${fila.categoria}: ${fila.descripcion} (${fila.tipo})`
-      : fila.descripcion;
-    return `<tr><td>${escaparHTML(fila.fecha)}</td><td>${escaparHTML(descripcion)}</td>` +
-           `<td class="monto">$${fila.monto.toFixed(2)}</td></tr>`;
-  }).join('');
-
-  if (!filasHTML) {
-    filasHTML = '<tr><td colspan="3">No hay registros para el período seleccionado.</td></tr>';
-  }
-
-  let resumen = `<p class="resumen">${filas.length} ${tipo === 'gastos' ? 'gasto' : 'ingreso'}` +
-    `${filas.length === 1 ? '' : 's'} registrado${filas.length === 1 ? '' : 's'} — ` +
-    `<strong>Total: $${total.toFixed(2)}</strong></p>`;
-
-  if (modo === 'mes') {
-    resumen += `<p class="resumen">Ingresos: $${balance.totalIngresos.toFixed(2)} | ` +
-      `Gastos: $${balance.totalGastos.toFixed(2)} | ` +
-      `<strong>Balance: $${balance.balance.toFixed(2)}</strong></p>`;
-  }
-
-  const anterior = document.getElementById('reporte-impresion');
-  if (anterior) anterior.remove();
-
-  const vista = document.createElement('div');
-  vista.id = 'reporte-impresion';
-  vista.innerHTML = `
-    <h1>Cuentas</h1>
-    <h2>Reporte de ${tipo}</h2>
-    <p>${modo === 'mes' ? 'Mes' : 'Día'} ${escaparHTML(valor)} | Emitido: ${fechaLocalISO()} | Usuario: ${escaparHTML(usuarioEmail.textContent || '')}</p>
-    <table>
-      <thead><tr><th>Fecha</th><th>Descripción</th><th class="monto">Monto</th></tr></thead>
-      <tbody>${filasHTML}</tbody>
-    </table>
-    ${resumen}
-  `;
-  document.body.appendChild(vista);
-  window.print();
+async function guardarConPluginNativo(blob, nombreArchivo) {
+  const plugins = window.Capacitor.Plugins;
+  const datos = await blobABase64(blob);
+  const archivo = await plugins.Filesystem.writeFile({
+    path: nombreArchivo,
+    data: datos,
+    directory: 'DOCUMENTS'
+  });
+  await plugins.Share.share({ files: [archivo.uri], title: nombreArchivo });
 }
 
 // Descargar el PDF con el mismo modo y período que esté activo en la lista
@@ -779,12 +744,21 @@ async function descargarReporte(tipo) {
   boton.textContent = '⏳ Generando...';
 
   try {
+    const consulta = `tipo=${tipo}&modo=${modo}&valor=${encodeURIComponent(valor)}`;
+
     if (esWebViewAndroid()) {
-      await imprimirReporte(tipo, modo, valor);
+      const nombreArchivo = `reporte-${tipo}-${valor}.pdf`;
+
+      if (pluginsGuardadoDisponibles()) {
+        const blob = await apiBlob(`/reporte?${consulta}`);
+        await guardarConPluginNativo(blob, nombreArchivo);
+      } else {
+        const data = await apiJSON(`/reporte/email?${consulta}`, { method: 'POST' });
+        alert(`${data.mensaje}. Revisá tu correo: el PDF está adjunto y podés guardarlo en el celular.`);
+      }
       return;
     }
 
-    const consulta = `tipo=${tipo}&modo=${modo}&valor=${encodeURIComponent(valor)}`;
     const blob = await apiBlob(`/reporte?${consulta}`);
     const url = URL.createObjectURL(blob);
     const enlace = document.createElement('a');
@@ -929,8 +903,9 @@ document.addEventListener('DOMContentLoaded', () => {
   mesBalance.value = mesActual;
 
   if (esWebViewAndroid()) {
-    btnPdfGastos.textContent = '🖨️ Guardar PDF';
-    btnPdfIngresos.textContent = '🖨️ Guardar PDF';
+    const texto = pluginsGuardadoDisponibles() ? '💾 Guardar PDF' : '📧 Enviar PDF';
+    btnPdfGastos.textContent = texto;
+    btnPdfIngresos.textContent = texto;
   }
 
   verificarSesion();

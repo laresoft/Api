@@ -741,21 +741,25 @@ app.get('/balance', requerirAuth, async (req, res) => {
   }
 });
 
-// Generar un reporte PDF de gastos o ingresos, solo del usuario autenticado
-app.get('/reporte', requerirAuth, async (req, res) => {
+// Validar los parámetros que comparten las dos rutas de reportes
+function parametrosReporte(req, res) {
   const { tipo, modo, valor } = req.query;
-
   const formatoValor = modo === 'fecha' ? /^\d{4}-\d{2}-\d{2}$/ : /^\d{4}-\d{2}$/;
+
   if (!['gastos', 'ingresos'].includes(tipo) || !['fecha', 'mes'].includes(modo) ||
       typeof valor !== 'string' || !formatoValor.test(valor)) {
-    return res.status(400).json({ error: 'Parámetros del reporte no válidos' });
+    res.status(400).json({ error: 'Parámetros del reporte no válidos' });
+    return null;
   }
+  return { tipo, modo, valor };
+}
 
-  const tabla = tipo;
+// Generar el PDF en memoria: sirve tanto para descargarlo como para adjuntarlo
+async function generarPDFReporte({ tipo, modo, valor, usuarioId, email }) {
   const columnas = tipo === 'gastos'
     ? 'id, fecha, categoria, descripcion, monto, tipo'
     : 'id, fecha, descripcion, monto';
-  const params = [req.usuario.id];
+  const params = [usuarioId];
   let where = ' WHERE usuario_id = $1';
 
   if (modo === 'fecha') {
@@ -766,29 +770,30 @@ app.get('/reporte', requerirAuth, async (req, res) => {
     where += ` AND fecha LIKE $${params.length}`;
   }
 
-  try {
-    const consultas = [pool.query(
-      `SELECT ${columnas} FROM ${tabla}${where} ORDER BY fecha DESC, id DESC`, params
-    )];
+  const consultas = [pool.query(
+    `SELECT ${columnas} FROM ${tipo}${where} ORDER BY fecha DESC, id DESC`, params
+  )];
 
-    if (modo === 'mes') {
-      const otraTabla = tipo === 'gastos' ? 'ingresos' : 'gastos';
-      consultas.push(pool.query(
-        `SELECT COALESCE(SUM(monto), 0) AS total FROM ${otraTabla}${where}`, params
-      ));
-    }
+  if (modo === 'mes') {
+    const otraTabla = tipo === 'gastos' ? 'ingresos' : 'gastos';
+    consultas.push(pool.query(
+      `SELECT COALESCE(SUM(monto), 0) AS total FROM ${otraTabla}${where}`, params
+    ));
+  }
 
-    const resultados = await Promise.all(consultas);
-    const filas = resultados[0].rows;
-    const total = filas.reduce((suma, fila) => suma + Number(fila.monto), 0);
-    const periodo = modo === 'mes' ? `Mes ${valor}` : `Día ${valor}`;
-    const emision = new Date().toISOString().slice(0, 10);
+  const resultados = await Promise.all(consultas);
+  const filas = resultados[0].rows;
+  const total = filas.reduce((suma, fila) => suma + Number(fila.monto), 0);
+  const periodo = modo === 'mes' ? `Mes ${valor}` : `Día ${valor}`;
+  const emision = new Date().toISOString().slice(0, 10);
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="reporte-${tipo}-${valor}.pdf"`);
-
+  return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margin: 45 });
-    doc.pipe(res);
+    const partes = [];
+
+    doc.on('data', parte => partes.push(parte));
+    doc.on('end', () => resolve(Buffer.concat(partes)));
+    doc.on('error', reject);
 
     const ancho = doc.page.width - doc.page.margins.left - doc.page.margins.right;
     const xFecha = 45;
@@ -799,7 +804,7 @@ app.get('/reporte', requerirAuth, async (req, res) => {
     doc.font('Helvetica-Bold').fontSize(18).text('Cuentas', { align: 'center' });
     doc.fontSize(12).text(`Reporte de ${tipo}`, { align: 'center' });
     doc.font('Helvetica').fontSize(10)
-      .text(`${periodo}  |  Emitido: ${emision}  |  Usuario: ${req.usuario.email || '-'}`, { align: 'center' });
+      .text(`${periodo}  |  Emitido: ${emision}  |  Usuario: ${email || '-'}`, { align: 'center' });
 
     let y = doc.y + 16;
     doc.font('Helvetica-Bold').fontSize(9);
@@ -852,9 +857,106 @@ app.get('/reporte', requerirAuth, async (req, res) => {
     }
 
     doc.end();
+  });
+}
+
+// Enviar el PDF por correo: Brevo en producción, Gmail como alternativa local
+async function enviarReportePorCorreo({ para, nombreArchivo, buffer }) {
+  const asunto = `Reporte de Cuentas: ${nombreArchivo}`;
+  const texto = `Hola:\n\nTe adjuntamos el reporte ${nombreArchivo} solicitado desde la app.\n\nSaludos,\nCuentas`;
+  const html = `<div style="font-family:system-ui,sans-serif;max-width:520px;margin:auto">
+    <h2>Tu reporte de Cuentas</h2>
+    <p>Hola, te adjuntamos el reporte <strong>${nombreArchivo}</strong> solicitado desde la app.</p>
+    <p>Si no lo pediste, podés ignorar este correo.</p>
+  </div>`;
+
+  if (BREVO_API_KEY) {
+    const respuesta = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': BREVO_API_KEY
+      },
+      body: JSON.stringify({
+        sender: { name: 'Cuentas', email: EMAIL_REMITENTE },
+        to: [{ email: para }],
+        subject: asunto,
+        textContent: texto,
+        htmlContent: html,
+        attachment: [{ name: nombreArchivo, content: buffer.toString('base64') }]
+      })
+    });
+
+    if (!respuesta.ok) {
+      const detalle = (await respuesta.text()).slice(0, 200);
+      throw new Error(`Brevo HTTP ${respuesta.status}: ${detalle}`);
+    }
+    return;
+  }
+
+  if (!transportista) {
+    throw new Error('No hay proveedor de email configurado');
+  }
+
+  await transportista.sendMail({
+    from: `"Cuentas" <${EMAIL_REMITENTE}>`,
+    to: para,
+    subject: asunto,
+    text: texto,
+    html: html,
+    attachments: [{ filename: nombreArchivo, content: buffer }]
+  });
+}
+
+// Descargar el PDF del reporte (navegadores)
+app.get('/reporte', requerirAuth, async (req, res) => {
+  const parametros = parametrosReporte(req, res);
+  if (!parametros) return;
+
+  try {
+    const buffer = await generarPDFReporte({
+      ...parametros,
+      usuarioId: req.usuario.id,
+      email: req.usuario.email
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition',
+      `attachment; filename="reporte-${parametros.tipo}-${parametros.valor}.pdf"`);
+    res.send(buffer);
   } catch (error) {
     console.error('Error al generar reporte:', error.message);
     res.status(500).json({ error: 'No se pudo generar el reporte' });
+  }
+});
+
+// Enviar el PDF al correo de la cuenta (WebView de la APK)
+app.post('/reporte/email', requerirAuth, async (req, res) => {
+  const parametros = parametrosReporte(req, res);
+  if (!parametros) return;
+
+  if (!req.usuario.email) {
+    return res.status(400).json({ error: 'La cuenta no tiene un correo asociado' });
+  }
+
+  try {
+    const nombreArchivo = `reporte-${parametros.tipo}-${parametros.valor}.pdf`;
+    const buffer = await generarPDFReporte({
+      ...parametros,
+      usuarioId: req.usuario.id,
+      email: req.usuario.email
+    });
+
+    await enviarReportePorCorreo({
+      para: req.usuario.email,
+      nombreArchivo,
+      buffer
+    });
+
+    res.json({ mensaje: `Te enviamos el reporte a ${req.usuario.email}` });
+  } catch (error) {
+    console.error('Error al enviar reporte por correo:', error.message);
+    res.status(500).json({ error: 'No se pudo enviar el reporte por correo' });
   }
 });
 

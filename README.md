@@ -123,6 +123,19 @@ El APK queda en `android/app/build/outputs/apk/debug/app-debug.apk`. Requiere JD
 
 > Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache `cuentas-v2`).
 
+### Reportes PDF en la APK
+El WebView de Android no permite descargas con `<a download>` ni `window.print()`. Por eso, dentro de la APK el botón dice **📧 Enviar PDF** y manda el archivo adjunto al correo de la cuenta (Brevo). En Safari/Chrome el botón descarga el PDF directamente.
+
+Para guardar el PDF desde la propia app (sin correo), sí hace falta recompilar la APK agregando los plugins:
+
+```bash
+npm install @capacitor/filesystem @capacitor/share
+npx cap sync android
+cd android && ./gradlew assembleDebug
+```
+
+El `script.js` detecta `Capacitor.Plugins.Filesystem` y `Capacitor.Plugins.Share`: si están presentes, el botón cambia a **💾 Guardar PDF** y usa esos plugins automáticamente.
+
 ---
 
 ## Limitaciones del plan gratuito
