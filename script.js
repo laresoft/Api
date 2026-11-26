@@ -476,7 +476,7 @@ const descripcionesPorCategoria = {
   Internet: 'Suscripción de internet',
   Celular: 'Recarga o plan de celular',
   Alimentación: 'Compra de alimentos',
-  Auto: 'Mantenimiento, patente o combustible del vehículo',
+  Auto: 'Combustible',
   Transporte: 'Pasaje o combustible',
   Salud: 'Consulta o medicamento',
   Higiene: 'Productos de higiene',

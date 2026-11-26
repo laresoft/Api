@@ -5,7 +5,7 @@ Memoria del proyecto entre sesiones. Máximo ~50 líneas: resumí o eliminá lo 
 - App publicada en Render (`https://cuentas-k956.onrender.com`) con PostgreSQL en Supabase.
 - Funciona en Android (APK Capacitor) y en iPhone como PWA agregada desde Safari.
 - Montos de gastos e ingresos aceptan hasta 2 decimales; balance y listados los muestran con `toFixed(2)`.
-- Categoría `Auto` disponible en Gastos Semifijos, con descripción sugerida de mantenimiento/patente/combustible.
+- Categoría `Auto` disponible en Gastos Semifijos, con descripción sugerida `Combustible`.
 - Reportes PDF de gastos e ingresos, por día o por mes, con detalle + total y balance en modo mes. Los meses incluyen un comentario económico breve (flujo, margen/déficit y categoría de mayor peso). Descarga directa en navegadores; en la APK se envían por correo al usuario.
 - `AGENTS.md` y `MEMORY.md` están en la raíz del repo y ya fueron pusheados.
 
@@ -14,7 +14,7 @@ Memoria del proyecto entre sesiones. Máximo ~50 líneas: resumí o eliminá lo 
 - Fecha editable en el formulario: permite registrar días pasados pero no días posteriores al actual.
 - Los cambios de esquema de la BD se aplican en `inicializarDB()` al arrancar: no hay acceso al dashboard de Supabase.
 - iPhone usa PWA (Agregar a pantalla de inicio) en vez de IPA: no requiere Mac ni cuenta de Apple Developer.
-- El service worker solo cachea archivos de interfaz; cada cambio visual exige subir `NOMBRE_CACHE` en `sw.js` (hoy `cuentas-v12`).
+- El service worker solo cachea archivos de interfaz; cada cambio visual exige subir `NOMBRE_CACHE` en `sw.js` (hoy `cuentas-v13`).
 - Los PDF se generan en el servidor con `pdfkit` (Helvetica, sin emojis ni fuentes externas); `generarPDFReporte()` devuelve un Buffer reusable para descarga o correo.
 - En la APK (WebView) no funcionan `<a download>` con blob, `navigator.share` ni `window.print()`: se envía el PDF por correo con `POST /reporte/email`. Para guardarlo dentro de la app hace falta recompilar con `@capacitor/filesystem` y `@capacitor/share`; el frontend ya detecta esos plugins.
 
