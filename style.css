@@ -165,6 +165,58 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/* Vista del reporte: solo se ve al imprimir (Guardar PDF desde la APK) */
+#reporte-impresion {
+  display: none;
+}
+
+@media print {
+  body > *:not(#reporte-impresion) {
+    display: none !important;
+  }
+
+  #reporte-impresion {
+    display: block !important;
+    color: #000;
+    font-size: 11pt;
+  }
+
+  #reporte-impresion h1 {
+    font-size: 18pt;
+    margin: 0 0 4pt;
+  }
+
+  #reporte-impresion h2 {
+    font-size: 13pt;
+    margin: 0 0 8pt;
+  }
+
+  #reporte-impresion p {
+    margin: 0 0 10pt;
+  }
+
+  #reporte-impresion table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  #reporte-impresion th,
+  #reporte-impresion td {
+    border: 1px solid #999;
+    padding: 4pt;
+    text-align: left;
+  }
+
+  #reporte-impresion th.monto,
+  #reporte-impresion td.monto {
+    text-align: right;
+  }
+
+  #reporte-impresion .resumen {
+    margin-top: 12pt;
+  }
+}
+
 /* Clase para ocultar campos según el modo elegido */
 .oculto {
   display: none !important;

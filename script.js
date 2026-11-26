@@ -685,6 +685,81 @@ async function eliminarIngreso(id) {
   }
 }
 
+// En la APK (WebView de Capacitor) no funciona la descarga con <a download>:
+// se usa el diálogo de impresión del sistema para guardar el PDF.
+function esWebViewAndroid() {
+  if (typeof window.Capacitor !== 'undefined') {
+    if (typeof window.Capacitor.getPlatform === 'function') {
+      return window.Capacitor.getPlatform() === 'android';
+    }
+    if (window.Capacitor.platform === 'android') return true;
+  }
+  // WebView de Android: "Version/4.0 Chrome" o "; wv" en el user agent
+  return /Android/.test(navigator.userAgent) && /(Version\/4\.0 Chrome|; wv)/.test(navigator.userAgent);
+}
+
+function escaparHTML(texto) {
+  return String(texto).replace(/[&<>"']/g, caracter => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[caracter]);
+}
+
+// Mostrar una vista imprimible con los mismos datos y filtros de la lista
+async function imprimirReporte(tipo, modo, valor) {
+  if (typeof window.print !== 'function') {
+    throw new Error('Este dispositivo no puede guardar PDF. Abrí la página en Chrome.');
+  }
+
+  const consulta = modo === 'mes' ? `mes=${valor}` : `fecha=${valor}`;
+  const consultas = [apiJSON(`/${tipo}?${consulta}`)];
+  if (modo === 'mes') consultas.push(apiJSON(`/balance?mes=${valor}`));
+
+  const resultados = await Promise.all(consultas);
+  const filas = resultados[0];
+  const balance = resultados[1];
+  const total = filas.reduce((suma, fila) => suma + fila.monto, 0);
+
+  let filasHTML = filas.map(fila => {
+    const descripcion = tipo === 'gastos'
+      ? `${fila.categoria}: ${fila.descripcion} (${fila.tipo})`
+      : fila.descripcion;
+    return `<tr><td>${escaparHTML(fila.fecha)}</td><td>${escaparHTML(descripcion)}</td>` +
+           `<td class="monto">$${fila.monto.toFixed(2)}</td></tr>`;
+  }).join('');
+
+  if (!filasHTML) {
+    filasHTML = '<tr><td colspan="3">No hay registros para el período seleccionado.</td></tr>';
+  }
+
+  let resumen = `<p class="resumen">${filas.length} ${tipo === 'gastos' ? 'gasto' : 'ingreso'}` +
+    `${filas.length === 1 ? '' : 's'} registrado${filas.length === 1 ? '' : 's'} — ` +
+    `<strong>Total: $${total.toFixed(2)}</strong></p>`;
+
+  if (modo === 'mes') {
+    resumen += `<p class="resumen">Ingresos: $${balance.totalIngresos.toFixed(2)} | ` +
+      `Gastos: $${balance.totalGastos.toFixed(2)} | ` +
+      `<strong>Balance: $${balance.balance.toFixed(2)}</strong></p>`;
+  }
+
+  const anterior = document.getElementById('reporte-impresion');
+  if (anterior) anterior.remove();
+
+  const vista = document.createElement('div');
+  vista.id = 'reporte-impresion';
+  vista.innerHTML = `
+    <h1>Cuentas</h1>
+    <h2>Reporte de ${tipo}</h2>
+    <p>${modo === 'mes' ? 'Mes' : 'Día'} ${escaparHTML(valor)} | Emitido: ${fechaLocalISO()} | Usuario: ${escaparHTML(usuarioEmail.textContent || '')}</p>
+    <table>
+      <thead><tr><th>Fecha</th><th>Descripción</th><th class="monto">Monto</th></tr></thead>
+      <tbody>${filasHTML}</tbody>
+    </table>
+    ${resumen}
+  `;
+  document.body.appendChild(vista);
+  window.print();
+}
+
 // Descargar el PDF con el mismo modo y período que esté activo en la lista
 async function descargarReporte(tipo) {
   const esGasto = tipo === 'gastos';
@@ -704,6 +779,11 @@ async function descargarReporte(tipo) {
   boton.textContent = '⏳ Generando...';
 
   try {
+    if (esWebViewAndroid()) {
+      await imprimirReporte(tipo, modo, valor);
+      return;
+    }
+
     const consulta = `tipo=${tipo}&modo=${modo}&valor=${encodeURIComponent(valor)}`;
     const blob = await apiBlob(`/reporte?${consulta}`);
     const url = URL.createObjectURL(blob);
@@ -847,6 +927,11 @@ document.addEventListener('DOMContentLoaded', () => {
   fechaListaIngreso.value = hoy;
   mesListaIngreso.value = mesActual;
   mesBalance.value = mesActual;
+
+  if (esWebViewAndroid()) {
+    btnPdfGastos.textContent = '🖨️ Guardar PDF';
+    btnPdfIngresos.textContent = '🖨️ Guardar PDF';
+  }
 
   verificarSesion();
 });
