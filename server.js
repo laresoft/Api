@@ -847,8 +847,8 @@ async function generarPDFReporte({ tipo, modo, valor, usuarioId, email }) {
 
     if (modo === 'mes') {
       const otroTotal = Number(resultados[1].rows[0].total);
-      const ingresos = tipo === 'gastos' ? total : otroTotal;
-      const gastos = tipo === 'gastos' ? otroTotal : total;
+      const ingresos = tipo === 'gastos' ? otroTotal : total;
+      const gastos = tipo === 'gastos' ? total : otroTotal;
 
       doc.font('Helvetica-Bold').fontSize(10);
       doc.text(`Ingresos: $${ingresos.toFixed(2)}`, xFecha, y); y += 16;

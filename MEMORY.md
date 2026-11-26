@@ -22,6 +22,7 @@ Memoria del proyecto entre sesiones. Máximo ~50 líneas: resumí o eliminá lo 
 - No hay identidad global de Git: usar `-c user.name='Lare' -c user.email='laresoftuy@gmail.com'` al commitear.
 - `node` no está en PATH en este entorno: usar `/mnt/c/Program Files/nodejs/node.exe` para `node --check`.
 - `pg` devuelve NUMERIC como string: sin `pg.types.setTypeParser(1700, Number)` rompen `toFixed` y los `reduce`.
+- En `generarPDFReporte`, `total` es la suma del tipo de reporte y `otroTotal` la de la tabla contraria: invertirlos deja ingresos/gastos y balance al revés.
 - No asumir `npm test`/lint: `package.json` solo tiene `start`.
 
 ## Próximos pasos
