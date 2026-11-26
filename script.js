@@ -11,6 +11,9 @@ const API_BASE = (() => {
 })();
 
 const CLAVE_TOKEN = 'cuentas-token';
+const CLAVE_EMAIL = 'cuentas-email';
+const CLAVE_PASSWORD = 'cuentas-password';
+const CLAVE_RECORDAR = 'cuentas-recordar'; // '1' por defecto, '0' si el usuario desmarca la casilla
 
 // --- Sesión y llamadas a la API ---
 
@@ -91,6 +94,7 @@ const btnRegistro = document.getElementById('btn-registro');
 const btnAlternarAuth = document.getElementById('btn-alternar-auth');
 const loginEmail = document.getElementById('login-email');
 const loginPassword = document.getElementById('login-password');
+const recordarPassword = document.getElementById('recordar-password');
 const registroNombre = document.getElementById('registro-nombre');
 const registroEmail = document.getElementById('registro-email');
 const registroPassword = document.getElementById('registro-password');
@@ -126,6 +130,35 @@ function ocultarContrasenas() {
     boton.setAttribute('aria-label', 'Ver contraseña');
   });
 }
+
+// El email siempre se recuerda; la contraseña solo si la casilla sigue activa.
+function recordarContrasenaActiva() {
+  return localStorage.getItem(CLAVE_RECORDAR) !== '0';
+}
+
+function restaurarCredenciales() {
+  loginEmail.value = localStorage.getItem(CLAVE_EMAIL) || '';
+  recordarPassword.checked = recordarContrasenaActiva();
+  loginPassword.value = recordarContrasenaActiva()
+    ? (localStorage.getItem(CLAVE_PASSWORD) || '')
+    : '';
+}
+
+function guardarCredenciales(email, password) {
+  localStorage.setItem(CLAVE_EMAIL, email);
+  if (recordarPassword.checked) {
+    localStorage.setItem(CLAVE_RECORDAR, '1');
+    localStorage.setItem(CLAVE_PASSWORD, password);
+  } else {
+    localStorage.setItem(CLAVE_RECORDAR, '0');
+    localStorage.removeItem(CLAVE_PASSWORD);
+  }
+}
+
+recordarPassword.addEventListener('change', () => {
+  localStorage.setItem(CLAVE_RECORDAR, recordarPassword.checked ? '1' : '0');
+  if (!recordarPassword.checked) localStorage.removeItem(CLAVE_PASSWORD);
+});
 
 document.querySelectorAll('.btn-ver-contra').forEach(boton => {
   boton.addEventListener('click', () => {
@@ -182,6 +215,7 @@ function cerrarSesion(mensaje = '') {
   formLogin.reset();
   formRegistro.reset();
   ocultarContrasenas();
+  restaurarCredenciales();
   mostrarAuth(mensaje);
 }
 
@@ -287,6 +321,8 @@ formRestablecer.addEventListener('submit', async (e) => {
     mensajeRestablecer.textContent = datos.mensaje;
     mensajeRestablecer.classList.add('ok');
     localStorage.removeItem(CLAVE_TOKEN);
+    // La contraseña anterior ya no sirve: que no se vuelva a completar.
+    localStorage.removeItem(CLAVE_PASSWORD);
     setTimeout(() => { window.location.href = '/'; }, 2500);
   } catch (error) {
     mensajeRestablecer.textContent = error.message;
@@ -325,14 +361,14 @@ formLogin.addEventListener('submit', async (e) => {
   authMensaje.textContent = 'Ingresando…';
 
   try {
+    const email = loginEmail.value.trim();
+    const password = loginPassword.value;
     const datos = await apiJSON('/login', {
       method: 'POST',
-      body: JSON.stringify({
-        email: loginEmail.value.trim(),
-        password: loginPassword.value
-      })
+      body: JSON.stringify({ email, password })
     });
     guardarToken(datos.token);
+    guardarCredenciales(email, password);
     loginPassword.value = '';
     await entrarApp(datos.usuario, { bienvenida: true, esRegistro: false });
   } catch (error) {
@@ -363,6 +399,7 @@ formRegistro.addEventListener('submit', async (e) => {
       })
     });
     guardarToken(datos.token);
+    guardarCredenciales(registroEmail.value.trim(), registroPassword.value);
     registroPassword.value = '';
     registroConfirmar.value = '';
     await entrarApp(datos.usuario, { bienvenida: true, esRegistro: true });
@@ -909,5 +946,6 @@ document.addEventListener('DOMContentLoaded', () => {
     btnPdfIngresos.textContent = texto;
   }
 
+  restaurarCredenciales();
   verificarSesion();
 });

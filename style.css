@@ -76,6 +76,28 @@ section h2 {
   box-shadow: 0 0 4px rgba(52, 152, 219, 0.3);
 }
 
+/* Casilla de recordar contraseña en el login */
+.recordar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 15px;
+  font-size: 0.95rem;
+  color: #555;
+}
+
+.recordar input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  accent-color: #2c3e50;
+}
+
+.recordar label {
+  margin: 0;
+  font-weight: 500;
+  cursor: pointer;
+}
+
 /* Selects con opciones readonly estilo lista */
 input[readonly] {
   background-color: #f8f9fa;
