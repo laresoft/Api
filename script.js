@@ -83,12 +83,38 @@ async function apiBlob(ruta) {
 // Android WebView no expone PublicKeyCredential hasta que la APK nativa habilita WebAuthn,
 // así que la detección de capacidades decide sola cuándo mostrar los botones.
 
+function diagnosticoHuella() {
+  return {
+    seguro: !!window.isSecureContext,
+    publicKeyCredential: !!window.PublicKeyCredential,
+    crear: !!(navigator.credentials && navigator.credentials.create),
+    obtener: !!(navigator.credentials && navigator.credentials.get),
+    protocolo: location.protocol,
+    webViewAndroid: esWebViewAndroid()
+  };
+}
+
 function passkeysDisponibles() {
-  return !!(
-    window.isSecureContext && window.PublicKeyCredential &&
-    navigator.credentials && navigator.credentials.create && navigator.credentials.get &&
-    location.protocol !== 'file:'
-  );
+  const d = diagnosticoHuella();
+  return d.seguro && d.publicKeyCredential && d.crear && d.obtener && d.protocolo !== 'file:';
+}
+
+// Si el WebView no expone WebAuthn, dejar una explicación visible en lugar de
+// ocultar la sección sin más. Con ?diag=1 se muestran las causas exactas.
+function mostrarEstadoHuella() {
+  const estado = document.getElementById('estado-huella');
+  if (!estado) return;
+  if (passkeysDisponibles()) {
+    estado.classList.add('oculto');
+    return;
+  }
+  const d = diagnosticoHuella();
+  let texto = 'Huella no disponible en este dispositivo. Actualizá Android System WebView o seguí usando tu contraseña.';
+  if (new URLSearchParams(location.search).has('diag')) {
+    texto += ' Diagnóstico: ' + JSON.stringify(d);
+  }
+  estado.textContent = texto;
+  estado.classList.remove('oculto');
 }
 
 function base64urlABuffer(texto) {
@@ -335,7 +361,13 @@ function abrirPerfil() {
   modalPerfil.classList.remove('oculto');
   btnPerfil.setAttribute('aria-expanded', 'true');
   contraActual.focus();
-  if (passkeysDisponibles()) cargarHuellas();
+  mostrarEstadoHuella();
+  if (passkeysDisponibles()) {
+    btnRegistrarHuella.classList.remove('oculto');
+    cargarHuellas();
+  } else {
+    btnRegistrarHuella.classList.add('oculto');
+  }
 }
 
 function cerrarPerfil(devolverFoco = true) {
@@ -1236,10 +1268,13 @@ document.addEventListener('DOMContentLoaded', () => {
     btnPdfIngresos.textContent = texto;
   }
 
+  seccionHuella.classList.remove('oculto');
   if (passkeysDisponibles()) {
     btnLoginHuella.classList.remove('oculto');
-    seccionHuella.classList.remove('oculto');
+  } else {
+    btnLoginHuella.classList.add('oculto');
   }
+  mostrarEstadoHuella();
 
   restaurarCredenciales();
   verificarSesion();

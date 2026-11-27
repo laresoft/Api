@@ -35,6 +35,7 @@ const paquete = (actividadActual.match(/package\s+([\w.]+)\s*;/) || [])[1] || 'c
 const actividadNueva = `package ${paquete};
 
 import android.os.Bundle;
+import android.util.Log;
 import android.webkit.WebView;
 
 import androidx.webkit.WebSettingsCompat;
@@ -43,18 +44,31 @@ import androidx.webkit.WebViewFeature;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+    private static final String TAG = "CuentasWebAuthn";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        WebView webView = getBridge().getWebView();
+        webView.getSettings().setJavaScriptEnabled(true);
+
         // WebView deshabilita WebAuthn por defecto. El modo APP permite usar los
         // passkeys asociados al dominio mediante /.well-known/assetlinks.json.
-        WebView webView = getBridge().getWebView();
         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_AUTHENTICATION)) {
             WebSettingsCompat.setWebAuthenticationSupport(
                     webView.getSettings(),
                     WebSettingsCompat.WEB_AUTHENTICATION_SUPPORT_FOR_APP
             );
+            int soporte = WebSettingsCompat.getWebAuthenticationSupport(webView.getSettings());
+            Log.i(TAG, "WebAuthn habilitado: " + soporte);
+            if (soporte == WebSettingsCompat.WEB_AUTHENTICATION_SUPPORT_FOR_APP) {
+                // Capacitor ya empezó a cargar la URL dentro de super.onCreate():
+                // recargamos para que la página se inicialice con PublicKeyCredential.
+                webView.post(() -> webView.reload());
+            }
+        } else {
+            Log.w(TAG, "WebView sin soporte de WebAuthn (requiere WebView 131+)");
         }
     }
 }

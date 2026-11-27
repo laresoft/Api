@@ -497,10 +497,19 @@ button:disabled {
 }
 
 .huella-explicacion,
-.huella-vacia {
+.huella-vacia,
+.huella-estado {
   margin: 0 0 10px !important;
   font-size: 0.85rem !important;
   color: #666 !important;
+}
+
+.huella-estado {
+  padding: 8px 10px;
+  background: #fff8e1;
+  border-radius: 6px;
+  color: #7a5b00 !important;
+  word-break: break-word;
 }
 
 .lista-huellas {
