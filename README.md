@@ -162,7 +162,7 @@ En **Perfil**, la lista de huellas no muestra texto: solo el botón **Quitar** p
 > El keystore de esta APK es nuevo: **desinstalá la APK anterior antes de instalar esta**. Android no permite actualizar una app firmada con otro certificado. Las huellas registradas con la firma anterior deben registrarse de nuevo.
 
 ### Reportes PDF en la APK
-El WebView de Android no permite descargas con `<a download>` ni `window.print()`. Por eso, dentro de la APK el botón dice **📧 Enviar PDF** y manda el archivo adjunto al correo de la cuenta (Brevo). En Safari/Chrome el botón descarga el PDF directamente.
+El WebView de Android no permite descargas con `<a download>` ni `window.print()`. Por eso, dentro de la APK el botón dice **📧 Enviar PDF** y manda el archivo adjunto al correo de la cuenta (Brevo). En Safari/Chrome el botón descarga el PDF directamente. Los PDF de Gastos incluyen, además del detalle y el total del período, dos líneas con la suma de **Ahorro** y de **Fondo Emergencia** registradas en ese mismo día o mes.
 
 Para guardar el PDF desde la propia app (sin correo), sí hace falta recompilar la APK agregando los plugins:
 

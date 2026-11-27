@@ -1233,6 +1233,11 @@ async function generarPDFReporte({ tipo, modo, valor, usuarioId, email }) {
   const resultados = await Promise.all(consultas);
   const filas = resultados[0].rows;
   const total = filas.reduce((suma, fila) => suma + Number(fila.monto), 0);
+  const sumarCategoria = categoria => filas
+    .filter(fila => fila.categoria === categoria)
+    .reduce((suma, fila) => suma + Number(fila.monto), 0);
+  const ahorro = tipo === 'gastos' ? sumarCategoria('Ahorro') : 0;
+  const fondoEmergencia = tipo === 'gastos' ? sumarCategoria('Fondo Emergencia') : 0;
   const periodo = modo === 'mes' ? `Mes ${valor}` : `Día ${valor}`;
   const emision = new Date().toISOString().slice(0, 10);
 
@@ -1289,6 +1294,16 @@ async function generarPDFReporte({ tipo, modo, valor, usuarioId, email }) {
     doc.text(`Total: $${total.toFixed(2)}`, xMonto - 60, y, { width: 145, align: 'right' });
     y += 20;
 
+    if (tipo === 'gastos') {
+      if (y + 40 > doc.page.height - doc.page.margins.bottom) {
+        doc.addPage();
+        y = doc.page.margins.top;
+      }
+      doc.font('Helvetica-Bold').fontSize(10);
+      doc.text(`Ahorro: $${ahorro.toFixed(2)}`, xFecha, y); y += 16;
+      doc.text(`Fondo Emergencia: $${fondoEmergencia.toFixed(2)}`, xFecha, y); y += 16;
+    }
+
     if (filas.length === 0) {
       doc.font('Helvetica').fontSize(10)
         .text('No hay registros para el período seleccionado.', xFecha, y);
@@ -1296,6 +1311,10 @@ async function generarPDFReporte({ tipo, modo, valor, usuarioId, email }) {
     }
 
     if (modo === 'mes') {
+      if (y + 60 > doc.page.height - doc.page.margins.bottom) {
+        doc.addPage();
+        y = doc.page.margins.top;
+      }
       const otroTotal = Number(resultados[1].rows[0].total);
       const ingresos = tipo === 'gastos' ? otroTotal : total;
       const gastos = tipo === 'gastos' ? total : otroTotal;
