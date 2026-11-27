@@ -45,6 +45,7 @@
           <label for="recordar-password">Recordar contraseña en este dispositivo</label>
         </div>
         <button type="submit" id="btn-login">Entrar</button>
+        <button type="button" id="btn-login-huella" class="btn-secundario oculto">👆 Ingresar con huella</button>
         <button type="button" id="btn-olvide" class="btn-secundario">¿Olvidaste tu contraseña?</button>
       </form>
 
@@ -305,6 +306,13 @@
         <button type="submit" id="btn-cambiar-contrasena">Actualizar contraseña</button>
       </form>
       <p id="mensaje-contrasena" class="auth-mensaje"></p>
+      <div id="seccion-huella" class="oculto">
+        <h3>Huella o Face ID</h3>
+        <p class="huella-explicacion">Entrá sin escribir la contraseña. Tu huella nunca sale del dispositivo.</p>
+        <button type="button" id="btn-registrar-huella" class="btn-secundario">👆 Registrar huella</button>
+        <div id="lista-huellas" class="lista-huellas"></div>
+        <p id="mensaje-huella" class="auth-mensaje"></p>
+      </div>
       <button type="button" id="btn-cerrar-perfil" class="btn-secundario">Cerrar</button>
     </div>
   </div>

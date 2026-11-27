@@ -6,7 +6,7 @@ App para registrar gastos e ingresos. Funciona en el celular y en cualquier disp
 
 **Costo: $0** — Render Free + Supabase Free.
 
-**Multiusuario:** cada persona se registra con email y contraseña y ve **solo sus propios datos**. Todos comparten el mismo deploy y la misma APK; la separación se hace con `usuario_id` en cada tabla.
+**Multiusuario:** cada persona se registra con email y contraseña y ve **solo sus propios datos**. Todos comparten el mismo deploy y la misma APK; la separación se hace con `usuario_id` en cada tabla. Opcionalmente se puede ingresar con huella / Face ID (passkeys), sin guardar la huella en el servidor.
 
 ---
 
@@ -71,7 +71,7 @@ App para registrar gastos e ingresos. Funciona en el celular y en cualquier disp
    - `JWT_SECRET`: la misma clave aleatoria del paso 2.
    - `BREVO_API_KEY`: key de **API** de Brevo (empieza con `xkeysib-`). Render Free bloquea los puertos SMTP, así que en producción se envía por HTTPS con Brevo (plan gratis, 300 correos/día).
    - `EMAIL_USER`: el remitente verificado en Brevo (ej. `laresoftuy@gmail.com`). Si es un dominio gratuito, Brevo puede mostrarlo como `...@brevosend.com`.
-   - `APP_URL`: la URL pública de Render (ej. `https://cuentas-xxxx.onrender.com`).
+   - `APP_URL`: la URL pública de Render (ej. `https://cuentas-xxxx.onrender.com`), **sin barra final**. Debe coincidir exactamente con el origen que usa el navegador; si no, las passkeys no funcionan.
    - `EMAIL_APP_PASSWORD`: opcional, solo para probar SMTP de Gmail en local (en Render no se usa porque el puerto está bloqueado).
 5. En unos minutos te da la URL:
    ```
@@ -88,9 +88,21 @@ Cada `git push` actualiza la app automáticamente. Si cambiás `JWT_SECRET`, las
 2. Ingresá email y contraseña (mínimo 6 caracteres) → **Crear cuenta**.
 3. Cada persona ve su propio balance, gastos e ingresos.
 4. **Cerrar sesión** está arriba a la derecha, al lado del nombre.
-5. Para cambiar la contraseña, abrí **Cambiar Contraseña** (al final de la pantalla), ingresá la actual y la nueva dos veces. Los botones **👁️ Ver / 🙈 Ocultar** sirven para revisar lo escrito.
+5. Para cambiar la contraseña, abrí **Perfil** (en el encabezado), ingresá la actual y la nueva dos veces. Los botones **👁️ Ver / 🙈 Ocultar** sirven para revisar lo escrito.
 
 La sesión queda guardada en el dispositivo 30 días. Si otra persona usa el mismo celular, debe cerrar sesión e iniciar con su cuenta.
+
+### Ingresar con huella / Face ID
+
+En iPhone (PWA agregada desde Safari) y en navegadores con WebAuthn aparece **👆 Ingresar con huella** en el login. Para activarlo:
+
+1. Entrá con tu contraseña y abrí **Perfil** → **👆 Registrar huella**.
+2. Confirmá con la huella, Face ID o el PIN del dispositivo.
+3. Desde entonces podés ingresar con **👆 Ingresar con huella**. En **Perfil** ves los dispositivos registrados y podés **Quitar** uno.
+
+El servidor guarda solo una **clave pública**: la huella nunca sale del teléfono. Al registrar la primera huella se borra la contraseña guardada en ese dispositivo y se desmarca **Recordar contraseña**; la contraseña escrita a mano sigue funcionando como respaldo, al igual que la recuperación por email.
+
+> La **APK actual no muestra estos botones**: el WebView necesita configuración nativa (`assetlinks.json` + recompilación). Queda pendiente para cuando se pueda firmar la APK. WebAuthn exige HTTPS (o `localhost`) y que `APP_URL` sea exactamente el origen de la app.
 
 ### ¿Olvidaste la contraseña?
 
@@ -121,7 +133,7 @@ cd android && ./gradlew assembleDebug
 
 El APK queda en `android/app/build/outputs/apk/debug/app-debug.apk`. Requiere JDK 21 y Android SDK instalados.
 
-> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache `cuentas-v2`).
+> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v19`, definido en `sw.js`).
 
 ### Reportes PDF en la APK
 El WebView de Android no permite descargas con `<a download>` ni `window.print()`. Por eso, dentro de la APK el botón dice **📧 Enviar PDF** y manda el archivo adjunto al correo de la cuenta (Brevo). En Safari/Chrome el botón descarga el PDF directamente.
@@ -140,8 +152,9 @@ El `script.js` detecta `Capacitor.Plugins.Filesystem` y `Capacitor.Plugins.Share
 
 ## Limitaciones del plan gratuito
 
+- **Requisitos de passkeys:** Node 22 en el servidor, HTTPS (o `localhost`) y `APP_URL` igual al origen real. Si se cambiara el dominio de Render, habría que registrar las huellas de nuevo.
 - **Render Free** se duerme tras 15 minutos sin visitas; la primera carga después de eso tarda ~1 minuto.
-- **Supabase Free** pausa el proyecto tras 7 días con poca actividad. Unos pocos registros por semana lo evitan. Si se pausa, se reactiva desde el dashboard y los datos se conservan.
+- **Supabase Free** pausa el proyecto tras 7 días con poca actividad. `GET /api/heartbeat` mantiene una escritura mínima (configuralo en cron-job.org cada 12 h con alerta por email). Si igual se pausa, se reactiva desde el dashboard y los datos se conservan.
 - Supabase Free **no incluye backups automáticos**. Si los datos te importan, exportalos de vez en cuando desde el dashboard.
 
 ---
@@ -156,6 +169,12 @@ Las rutas marcadas con 🔒 requieren la cabecera `Authorization: Bearer <token>
 | `POST` | `/registro` | Crear cuenta (email, password, nombre opcional) → devuelve token |
 | `POST` | `/login` | Iniciar sesión → devuelve token |
 | `GET` | `/api/me` | 🔒 Datos del usuario actual |
+| `POST` | `/api/passkey/registro/opciones` | 🔒 Iniciar registro de huella (devuelve opciones WebAuthn) |
+| `POST` | `/api/passkey/registro/verificar` | 🔒 Verificar y guardar la clave pública de la huella |
+| `GET` | `/api/passkey` | 🔒 Listar huellas de la cuenta |
+| `DELETE` | `/api/passkey/:id` | 🔒 Quitar una huella de la cuenta |
+| `POST` | `/api/passkey/autenticar/opciones` | Iniciar ingreso con huella (sin contraseña) |
+| `POST` | `/api/passkey/autenticar/verificar` | Verificar la huella → devuelve token |
 | `POST` | `/cambiar-contrasena` | 🔒 Cambiar contraseña (contraseña actual + nueva) |
 | `POST` | `/recuperar` | Pedir enlace de recuperación por email |
 | `GET` | `/restablecer?token=...` | Pantalla de nueva contraseña |
@@ -170,3 +189,4 @@ Las rutas marcadas con 🔒 requieren la cabecera `Authorization: Bearer <token>
 | `GET` | `/ingresos?mes=YYYY-MM` | 🔒 Ingresos del usuario en un mes |
 | `DELETE` | `/ingresos/:id` | 🔒 Eliminar ingreso propio |
 | `GET` | `/balance?mes=YYYY-MM` | 🔒 Ingresos, gastos y balance del mes del usuario |
+| `GET` | `/api/heartbeat` | Latido antipausa de Supabase Free (actualiza una fila, sin datos personales) |

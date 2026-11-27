@@ -484,6 +484,53 @@ button:disabled {
   margin-top: 10px;
 }
 
+#seccion-huella {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e9ec;
+}
+
+#seccion-huella h3 {
+  margin: 0 0 8px;
+  color: #2c3e50;
+  font-size: 1rem;
+}
+
+.huella-explicacion,
+.huella-vacia {
+  margin: 0 0 10px !important;
+  font-size: 0.85rem !important;
+  color: #666 !important;
+}
+
+.lista-huellas {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.huella-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #f4f7f9;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  word-break: break-word;
+}
+
+.btn-quitar-huella {
+  flex-shrink: 0;
+  padding: 4px 6px;
+  background: transparent;
+  border: none;
+  color: #c0392b;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
 /* Est responsive */
 @media (min-width: 600px) {
   body {

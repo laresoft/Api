@@ -28,13 +28,16 @@ Proyecto **Cuentas** (raíz del repo): API Node/Express + frontend vanilla servi
 
 ## Frontend / PWA
 - `index.html`, `script.js` y `style.css` se sirven tal cual: se editan directo, sin transpilación. Textos y comentarios en español.
-- `sw.js` hace caché cache-first de archivos estáticos. Al cambiar `index.html`/`script.js`/`style.css`/iconos, subir `NOMBRE_CACHE` (hoy `cuentas-v18`) o los usuarios ven UI vieja. Las rutas de API están excluidas a propósito.
+- `sw.js` hace caché cache-first de archivos estáticos. Al cambiar `index.html`/`script.js`/`style.css`/iconos, subir `NOMBRE_CACHE` (hoy `cuentas-v19`) o los usuarios ven UI vieja. Las rutas de API están excluidas a propósito (incluidas `/api/passkey/*`).
 - Ojo: el README menciona cache `cuentas-v2`; la fuente real es `sw.js` (`cuentas-v18`).
 - `capacitor.config.json` apunta a la URL de Render: la APK de Android y la PWA del iPhone no requieren recompilar al cambiar la web. En iPhone se agrega con Safari → Compartir → Agregar a pantalla de inicio; las etiquetas `apple-touch-icon`/`apple-mobile-web-app-*` son intencionales.
 - El WebView de la APK no descarga `<a download>` con blob, no expone `navigator.share` **y ignora `window.print()`**: en la APK los reportes se envían por correo (`POST /reporte/email`, adjunto vía Brevo) al email del token. En navegadores se descarga el PDF de `GET /reporte`. Si algún día se recompila con `@capacitor/filesystem` + `@capacitor/share`, `pluginsGuardadoDisponibles()` los detecta y guarda/comparte el PDF sin correo.
 
 ## Auth y validaciones
 - Tokens propios: `base64url(payload).base64url(HMAC-SHA256)`, 30 días. Contraseñas con `scrypt` + sal y `timingSafeEqual`. No hay dependencias `jsonwebtoken`/`bcrypt`.
+- Passkeys (Fase 1): `@simplewebauthn/server` exige Node 22. `APP_URL` debe ser el **origen exacto** (sin barra final); de él se derivan `ORIGEN_APP` y `RP_ID`. `passkey_credenciales` guarda solo clave pública, contador y dispositivo; `passkey_challenges` expira en 5 min y los challenges son de un solo uso (se consumen aunque falle la verificación).
+- El frontend convierte base64url ↔ ArrayBuffer a mano (sin `@simplewebauthn/browser` ni build). Los botones de huella se ocultan en WebView de Android y en `file://`; secreto: no guardar la contraseña al registrar la primera passkey (`dejarDeGuardarPassword()`).
+- La APK actual **no soporta aún** WebAuthn: Fase 2 requiere `/.well-known/assetlinks.json` con el SHA-256 del certificado y recompilar. No prometer huella en Android hasta entonces.
 - Recuperación: token de un solo uso guardado como SHA-256 en `recuperaciones`, expira en 30 min; rate limit en memoria (3 por 10 min). La respuesta es genérica a propósito para no revelar emails.
 - `validarFecha()` rechaza fechas futuras y del mes anterior, usa hora local (nunca UTC).
 - Montos: > 0 y hasta 2 decimales; inputs con `min="0.01"` y `step="0.01"`.

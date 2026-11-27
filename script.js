@@ -78,6 +78,112 @@ async function apiBlob(ruta) {
   return respuesta.blob();
 }
 
+// --- Passkeys (huella / Face ID) ---
+// El navegador hace la biometría; el servidor solo recibe una firma y guarda la clave pública.
+// En la APK actual el botón queda oculto: WebAuthn necesita configuración nativa (Fase 2).
+
+function passkeysDisponibles() {
+  if (esWebViewAndroid()) return false;
+  if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' &&
+      window.Capacitor.isNativePlatform()) return false;
+  return !!(
+    window.isSecureContext && window.PublicKeyCredential &&
+    navigator.credentials && navigator.credentials.create && navigator.credentials.get &&
+    location.protocol !== 'file:'
+  );
+}
+
+function base64urlABuffer(texto) {
+  const limpio = String(texto || '').replace(/-/g, '+').replace(/_/g, '/');
+  const relleno = '='.repeat((4 - limpio.length % 4) % 4);
+  const binario = atob(limpio + relleno);
+  return Uint8Array.from(binario, caracter => caracter.charCodeAt(0)).buffer;
+}
+
+function bufferABase64url(buffer) {
+  if (buffer == null) return undefined;
+  const bytes = new Uint8Array(buffer);
+  let binario = '';
+  for (const byte of bytes) binario += String.fromCharCode(byte);
+  return btoa(binario).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function prepararOpcionesRegistro(opciones) {
+  return {
+    ...opciones,
+    challenge: base64urlABuffer(opciones.challenge),
+    user: { ...opciones.user, id: base64urlABuffer(opciones.user.id) },
+    excludeCredentials: (opciones.excludeCredentials || []).map(cred => ({
+      ...cred,
+      id: base64urlABuffer(cred.id)
+    }))
+  };
+}
+
+function prepararOpcionesAutenticacion(opciones) {
+  return {
+    ...opciones,
+    challenge: base64urlABuffer(opciones.challenge),
+    allowCredentials: (opciones.allowCredentials || []).map(cred => ({
+      ...cred,
+      id: base64urlABuffer(cred.id)
+    }))
+  };
+}
+
+function credencialRegistroJSON(credencial) {
+  const transports = typeof credencial.response.getTransports === 'function'
+    ? credencial.response.getTransports()
+    : [];
+  return {
+    id: credencial.id,
+    rawId: bufferABase64url(credencial.rawId),
+    type: credencial.type,
+    authenticatorAttachment: credencial.authenticatorAttachment || undefined,
+    response: {
+      clientDataJSON: bufferABase64url(credencial.response.clientDataJSON),
+      attestationObject: bufferABase64url(credencial.response.attestationObject),
+      transports
+    },
+    clientExtensionResults: typeof credencial.getClientExtensionResults === 'function'
+      ? credencial.getClientExtensionResults()
+      : {}
+  };
+}
+
+function credencialAutenticacionJSON(credencial) {
+  return {
+    id: credencial.id,
+    rawId: bufferABase64url(credencial.rawId),
+    type: credencial.type,
+    response: {
+      authenticatorData: bufferABase64url(credencial.response.authenticatorData),
+      clientDataJSON: bufferABase64url(credencial.response.clientDataJSON),
+      signature: bufferABase64url(credencial.response.signature),
+      userHandle: credencial.response.userHandle
+        ? bufferABase64url(credencial.response.userHandle)
+        : undefined
+    },
+    clientExtensionResults: typeof credencial.getClientExtensionResults === 'function'
+      ? credencial.getClientExtensionResults()
+      : {}
+  };
+}
+
+function nombreDispositivo() {
+  const agente = navigator.userAgent;
+  if (/iPhone|iPad|iPod/.test(agente)) return 'iPhone/iPad';
+  if (/Android/.test(agente)) return 'Android';
+  if (/Macintosh/.test(agente)) return 'Mac';
+  if (/Windows/.test(agente)) return 'Windows';
+  return 'Este dispositivo';
+}
+
+function mostrarMensajeHuella(texto, esOk = false) {
+  mensajeHuella.textContent = texto;
+  mensajeHuella.classList.toggle('ok', esOk);
+}
+
 // --- Pantalla de acceso ---
 
 const auth = document.getElementById('auth');
@@ -91,6 +197,7 @@ const authMensaje = document.getElementById('auth-mensaje');
 const formLogin = document.getElementById('form-login');
 const formRegistro = document.getElementById('form-registro');
 const btnLogin = document.getElementById('btn-login');
+const btnLoginHuella = document.getElementById('btn-login-huella');
 const btnRegistro = document.getElementById('btn-registro');
 const btnAlternarAuth = document.getElementById('btn-alternar-auth');
 const loginEmail = document.getElementById('login-email');
@@ -108,6 +215,10 @@ const modalPerfil = document.getElementById('modal-perfil');
 const perfilNombre = document.getElementById('perfil-nombre');
 const perfilEmail = document.getElementById('perfil-email');
 const btnCerrarPerfil = document.getElementById('btn-cerrar-perfil');
+const seccionHuella = document.getElementById('seccion-huella');
+const btnRegistrarHuella = document.getElementById('btn-registrar-huella');
+const listaHuellas = document.getElementById('lista-huellas');
+const mensajeHuella = document.getElementById('mensaje-huella');
 
 // Pantallas de recuperación de contraseña
 const olvide = document.getElementById('olvide');
@@ -226,6 +337,7 @@ function abrirPerfil() {
   modalPerfil.classList.remove('oculto');
   btnPerfil.setAttribute('aria-expanded', 'true');
   contraActual.focus();
+  if (passkeysDisponibles()) cargarHuellas();
 }
 
 function cerrarPerfil(devolverFoco = true) {
@@ -234,8 +346,57 @@ function cerrarPerfil(devolverFoco = true) {
   formContrasena.reset();
   mensajeContrasena.textContent = '';
   mensajeContrasena.classList.remove('ok');
+  mostrarMensajeHuella('');
   ocultarContrasenas();
   if (devolverFoco) btnPerfil.focus();
+}
+
+async function cargarHuellas() {
+  try {
+    const datos = await apiJSON('/api/passkey');
+    renderizarHuellas(datos.credenciales || []);
+  } catch (error) {
+    mostrarMensajeHuella(error.message);
+  }
+}
+
+function renderizarHuellas(credenciales) {
+  listaHuellas.replaceChildren();
+
+  if (!credenciales.length) {
+    const aviso = document.createElement('p');
+    aviso.className = 'huella-vacia';
+    aviso.textContent = 'Todavía no registraste ninguna huella en esta cuenta.';
+    listaHuellas.appendChild(aviso);
+    return;
+  }
+
+  credenciales.forEach(credencial => {
+    const fila = document.createElement('div');
+    fila.className = 'huella-item';
+
+    const texto = document.createElement('span');
+    const fecha = credencial.creado_en
+      ? new Date(credencial.creado_en).toLocaleDateString('es-UY')
+      : '';
+    texto.textContent = `${credencial.dispositivo || 'Este dispositivo'}${fecha ? ` · ${fecha}` : ''}`;
+
+    const boton = document.createElement('button');
+    boton.type = 'button';
+    boton.className = 'btn-quitar-huella';
+    boton.dataset.quitarHuella = String(credencial.id);
+    boton.textContent = 'Quitar';
+
+    fila.append(texto, boton);
+    listaHuellas.appendChild(fila);
+  });
+}
+
+// Al registrar la primera passkey dejamos de guardar la contraseña en el dispositivo.
+function dejarDeGuardarPassword() {
+  recordarPassword.checked = false;
+  localStorage.setItem(CLAVE_RECORDAR, '0');
+  localStorage.removeItem(CLAVE_PASSWORD);
 }
 
 function cerrarSesion(mensaje = '') {
@@ -455,6 +616,87 @@ modalPerfil.addEventListener('click', (e) => {
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !modalPerfil.classList.contains('oculto')) cerrarPerfil();
+});
+
+// Ingresar con huella desde el login (iPhone PWA y navegadores seguros).
+btnLoginHuella.addEventListener('click', async () => {
+  btnLoginHuella.disabled = true;
+  authMensaje.textContent = 'Confirmá con tu huella…';
+  try {
+    const opciones = await apiJSON('/api/passkey/autenticar/opciones', { method: 'POST' });
+    const credencial = await navigator.credentials.get({
+      publicKey: prepararOpcionesAutenticacion(opciones)
+    });
+    if (!credencial) throw new Error('No se completó el ingreso con huella');
+
+    const datos = await apiJSON('/api/passkey/autenticar/verificar', {
+      method: 'POST',
+      body: JSON.stringify({
+        challenge: opciones.challenge,
+        response: credencialAutenticacionJSON(credencial)
+      })
+    });
+    guardarToken(datos.token);
+    loginPassword.value = '';
+    await entrarApp(datos.usuario, { bienvenida: true, esRegistro: false });
+  } catch (error) {
+    if (error.name === 'NotAllowedError') {
+      authMensaje.textContent = 'Cancelaste o no se permitió usar la huella. Podés entrar con tu contraseña.';
+    } else {
+      authMensaje.textContent = error.message || 'No se pudo ingresar con la huella';
+    }
+  } finally {
+    btnLoginHuella.disabled = false;
+  }
+});
+
+// Registrar una huella desde Perfil.
+btnRegistrarHuella.addEventListener('click', async () => {
+  btnRegistrarHuella.disabled = true;
+  mostrarMensajeHuella('Confirmá con tu huella para registrar este dispositivo…');
+  try {
+    const opciones = await apiJSON('/api/passkey/registro/opciones', { method: 'POST' });
+    const credencial = await navigator.credentials.create({
+      publicKey: prepararOpcionesRegistro(opciones)
+    });
+    if (!credencial) throw new Error('No se completó el registro de la huella');
+
+    const datos = await apiJSON('/api/passkey/registro/verificar', {
+      method: 'POST',
+      body: JSON.stringify({
+        challenge: opciones.challenge,
+        response: credencialRegistroJSON(credencial),
+        dispositivo: nombreDispositivo()
+      })
+    });
+    dejarDeGuardarPassword();
+    mostrarMensajeHuella(datos.mensaje, true);
+    renderizarHuellas(datos.credenciales || []);
+  } catch (error) {
+    if (error.name === 'NotAllowedError') {
+      mostrarMensajeHuella('Cancelaste o no se permitió usar la huella.');
+    } else {
+      mostrarMensajeHuella(error.message || 'No se pudo registrar la huella');
+    }
+  } finally {
+    btnRegistrarHuella.disabled = false;
+  }
+});
+
+listaHuellas.addEventListener('click', async (evento) => {
+  const boton = evento.target.closest('button[data-quitar-huella]');
+  if (!boton) return;
+
+  const id = Number(boton.dataset.quitarHuella);
+  boton.disabled = true;
+  try {
+    await apiJSON(`/api/passkey/${id}`, { method: 'DELETE' });
+    await cargarHuellas();
+    mostrarMensajeHuella('Huella quitada de esta cuenta.', true);
+  } catch (error) {
+    mostrarMensajeHuella(error.message);
+    boton.disabled = false;
+  }
 });
 
 async function entrarApp(usuario, opciones = {}) {
@@ -994,6 +1236,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const texto = pluginsGuardadoDisponibles() ? '💾 Guardar PDF' : '📧 Enviar PDF';
     btnPdfGastos.textContent = texto;
     btnPdfIngresos.textContent = texto;
+  }
+
+  if (passkeysDisponibles()) {
+    btnLoginHuella.classList.remove('oculto');
+    seccionHuella.classList.remove('oculto');
   }
 
   restaurarCredenciales();

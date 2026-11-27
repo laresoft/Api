@@ -7,6 +7,12 @@ const crypto = require('crypto');
 const path = require('path');
 const nodemailer = require('nodemailer');
 const PDFDocument = require('pdfkit');
+const {
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse
+} = require('@simplewebauthn/server');
 const { promisify } = require('util');
 
 require('dotenv').config();
@@ -68,6 +74,10 @@ pg.types.setTypeParser(1700, Number);
 // Render Free bloquea los puertos SMTP (25/465/587), así que en producción se usa
 // la API HTTPS de Brevo. Gmail SMTP queda como alternativa para uso local.
 const URL_APP = process.env.APP_URL || 'https://cuentas-k956.onrender.com';
+// WebAuthn exige coincidir exactamente el origen y el dominio (RP ID) de la app.
+const ORIGEN_APP = new URL(URL_APP).origin;
+const RP_ID = new URL(URL_APP).hostname;
+const DURACION_CHALLENGE = 5 * 60 * 1000;
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
 const EMAIL_REMITENTE = process.env.EMAIL_USER || 'laresoftuy@gmail.com';
 
@@ -285,6 +295,31 @@ async function inicializarDB() {
     )
   `);
   await pool.query('INSERT INTO app_actividad (id) VALUES (1) ON CONFLICT (id) DO NOTHING');
+
+  // Passkeys: solo se guarda la clave pública. La huella nunca sale del dispositivo.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS passkey_credenciales (
+      id SERIAL PRIMARY KEY,
+      usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+      credential_id TEXT NOT NULL UNIQUE,
+      public_key BYTEA NOT NULL,
+      counter INTEGER NOT NULL DEFAULT 0,
+      dispositivo TEXT NOT NULL DEFAULT 'Este dispositivo',
+      transports TEXT[] NOT NULL DEFAULT '{}',
+      creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      ultimo_uso TIMESTAMPTZ
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_passkey_credenciales_usuario
+    ON passkey_credenciales(usuario_id)`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS passkey_challenges (
+      challenge TEXT PRIMARY KEY,
+      tipo TEXT NOT NULL CHECK (tipo IN ('registro', 'autenticacion')),
+      usuario_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE,
+      expira_en TIMESTAMPTZ NOT NULL
+    )
+  `);
 }
 
 // Validación de fecha compartida (local, nunca UTC; sin fechas futuras ni del mes anterior)
@@ -429,6 +464,254 @@ app.get('/api/heartbeat', async (req, res) => {
   } catch (error) {
     console.error('Error en heartbeat:', error.message);
     res.status(500).json({ ok: false, error: 'No se pudo registrar la actividad' });
+  }
+});
+
+// --- Ingreso con huella / Face ID (passkeys WebAuthn) ---
+
+async function guardarChallenge(challenge, tipo, usuarioId = null) {
+  await pool.query('DELETE FROM passkey_challenges WHERE expira_en < NOW()');
+  await pool.query(
+    `INSERT INTO passkey_challenges (challenge, tipo, usuario_id, expira_en)
+     VALUES ($1, $2, $3, NOW() + ($4 * INTERVAL '1 millisecond'))`,
+    [challenge, tipo, usuarioId, DURACION_CHALLENGE]
+  );
+}
+
+// Los challenges son de un solo uso: se consumen aunque la verificación falle.
+async function consumirChallenge(challenge, tipo, usuarioId = null) {
+  const condicionUsuario = usuarioId === null ? 'usuario_id IS NULL' : 'usuario_id = $3';
+  const valores = usuarioId === null ? [challenge, tipo] : [challenge, tipo, usuarioId];
+  const resultado = await pool.query(
+    `DELETE FROM passkey_challenges
+     WHERE challenge = $1 AND tipo = $2 AND expira_en > NOW() AND ${condicionUsuario}
+     RETURNING challenge`,
+    valores
+  );
+  return resultado.rowCount > 0 ? resultado.rows[0] : null;
+}
+
+async function listarCredenciales(usuarioId) {
+  const resultado = await pool.query(
+    `SELECT id, dispositivo, creado_en, ultimo_uso
+     FROM passkey_credenciales WHERE usuario_id = $1 ORDER BY id`,
+    [usuarioId]
+  );
+  return resultado.rows;
+}
+
+// Paso 1 de registro: el servidor entrega las opciones y recuerda el challenge.
+app.post('/api/passkey/registro/opciones', requerirAuth, async (req, res) => {
+  try {
+    const usuario = await pool.query(
+      'SELECT id, email, nombre FROM usuarios WHERE id = $1',
+      [req.usuario.id]
+    );
+    if (usuario.rowCount === 0) {
+      return res.status(401).json({ error: 'Usuario no encontrado. Iniciá sesión nuevamente.' });
+    }
+
+    const existentes = await pool.query(
+      'SELECT credential_id, transports FROM passkey_credenciales WHERE usuario_id = $1',
+      [req.usuario.id]
+    );
+    const datos = usuario.rows[0];
+    const opciones = await generateRegistrationOptions({
+      rpName: 'Cuentas',
+      rpID: RP_ID,
+      userName: datos.email,
+      userDisplayName: datos.nombre || datos.email,
+      userID: new Uint8Array(Buffer.from(String(datos.id), 'utf8')),
+      attestationType: 'none',
+      excludeCredentials: existentes.rows.map(cred => ({
+        id: cred.credential_id,
+        transports: cred.transports || undefined
+      })),
+      authenticatorSelection: {
+        authenticatorAttachment: 'platform',
+        // Necesitamos credenciales descubribles: el ingreso no pide email ni lista de llaves.
+        residentKey: 'required',
+        userVerification: 'required'
+      }
+    });
+
+    await guardarChallenge(opciones.challenge, 'registro', datos.id);
+    res.json(opciones);
+  } catch (error) {
+    console.error('Error generando opciones de passkey:', error.message);
+    res.status(500).json({ error: 'No se pudo iniciar el registro de la huella' });
+  }
+});
+
+// Paso 2 de registro: validamos la firma y guardamos SOLO la clave pública.
+app.post('/api/passkey/registro/verificar', requerirAuth, async (req, res) => {
+  const challenge = String(req.body.challenge || '');
+  const respuesta = req.body.response;
+  if (!challenge || !respuesta || typeof respuesta !== 'object') {
+    return res.status(400).json({ error: 'Faltan datos del registro de huella' });
+  }
+
+  try {
+    const reto = await consumirChallenge(challenge, 'registro', req.usuario.id);
+    if (!reto) {
+      return res.status(400).json({ error: 'El registro venció. Probá de nuevo.' });
+    }
+
+    const verificacion = await verifyRegistrationResponse({
+      response: respuesta,
+      expectedChallenge: reto.challenge,
+      expectedOrigin: ORIGEN_APP,
+      expectedRPID: RP_ID,
+      requireUserVerification: true
+    });
+
+    if (!verificacion.verified || !verificacion.registrationInfo) {
+      return res.status(400).json({ error: 'No se pudo verificar la huella' });
+    }
+
+    const credencial = verificacion.registrationInfo.credential;
+    if (!credencial || !credencial.id || !credencial.publicKey) {
+      return res.status(400).json({ error: 'La huella devuelta no es válida' });
+    }
+
+    const transports = Array.isArray(respuesta.response && respuesta.response.transports)
+      ? respuesta.response.transports.filter(t => typeof t === 'string').slice(0, 10)
+      : [];
+    const dispositivo = String(req.body.dispositivo || '').trim().slice(0, 60) || 'Este dispositivo';
+
+    await pool.query(
+      `INSERT INTO passkey_credenciales
+        (usuario_id, credential_id, public_key, counter, dispositivo, transports)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        req.usuario.id,
+        credencial.id,
+        Buffer.from(credencial.publicKey),
+        credencial.counter || 0,
+        dispositivo,
+        transports
+      ]
+    );
+
+    res.json({
+      ok: true,
+      mensaje: 'Huella registrada correctamente',
+      credenciales: await listarCredenciales(req.usuario.id)
+    });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Esta huella ya está registrada en otra cuenta' });
+    }
+    console.error('Error verificando registro de passkey:', error.message);
+    res.status(400).json({ error: 'No se pudo verificar la huella. Probá de nuevo.' });
+  }
+});
+
+// Ingreso sin contraseña: el usuario se identifica con una credencial descubirable.
+app.post('/api/passkey/autenticar/opciones', async (req, res) => {
+  try {
+    const opciones = await generateAuthenticationOptions({
+      rpID: RP_ID,
+      timeout: 60000,
+      userVerification: 'required',
+      allowCredentials: []
+    });
+    await guardarChallenge(opciones.challenge, 'autenticacion', null);
+    res.json(opciones);
+  } catch (error) {
+    console.error('Error generando opciones de autenticación:', error.message);
+    res.status(500).json({ error: 'No se pudo iniciar el ingreso con huella' });
+  }
+});
+
+app.post('/api/passkey/autenticar/verificar', async (req, res) => {
+  const challenge = String(req.body.challenge || '');
+  const respuesta = req.body.response;
+  if (!challenge || !respuesta || typeof respuesta !== 'object' || !respuesta.id) {
+    return res.status(400).json({ error: 'Faltan datos de la huella' });
+  }
+
+  try {
+    const reto = await consumirChallenge(challenge, 'autenticacion', null);
+    if (!reto) {
+      return res.status(400).json({ error: 'El ingreso con huella venció. Probá de nuevo.' });
+    }
+
+    const fila = await pool.query(
+      `SELECT c.id AS credencial_id_db, c.credential_id, c.public_key, c.counter, c.transports,
+              u.id, u.email, u.nombre
+       FROM passkey_credenciales c
+       JOIN usuarios u ON u.id = c.usuario_id
+       WHERE c.credential_id = $1`,
+      [respuesta.id]
+    );
+    if (fila.rowCount === 0) {
+      return res.status(401).json({ error: 'Huella no reconocida. Registrala desde Perfil.' });
+    }
+
+    const registro = fila.rows[0];
+    const verificacion = await verifyAuthenticationResponse({
+      response: respuesta,
+      expectedChallenge: reto.challenge,
+      expectedOrigin: ORIGEN_APP,
+      expectedRPID: RP_ID,
+      credential: {
+        id: registro.credential_id,
+        publicKey: registro.public_key,
+        counter: registro.counter,
+        transports: registro.transports || []
+      },
+      requireUserVerification: true
+    });
+
+    if (!verificacion.verified) {
+      return res.status(401).json({ error: 'No se pudo verificar la huella' });
+    }
+
+    await pool.query(
+      'UPDATE passkey_credenciales SET counter = $1, ultimo_uso = NOW() WHERE id = $2',
+      [Math.max(registro.counter, verificacion.authenticationInfo.newCounter), registro.credencial_id_db]
+    );
+
+    const usuario = { id: registro.id, email: registro.email, nombre: registro.nombre };
+    res.json({
+      token: crearToken(usuario),
+      usuario,
+      mensaje: 'Sesión iniciada con huella'
+    });
+  } catch (error) {
+    console.error('Error verificando autenticación con passkey:', error.message);
+    res.status(401).json({ error: 'No se pudo ingresar con la huella. Probá con tu contraseña.' });
+  }
+});
+
+// Administrar las huellas registradas por la cuenta actual
+app.get('/api/passkey', requerirAuth, async (req, res) => {
+  try {
+    res.json({ credenciales: await listarCredenciales(req.usuario.id) });
+  } catch (error) {
+    console.error('Error listando passkeys:', error.message);
+    res.status(500).json({ error: 'No se pudieron leer tus huellas registradas' });
+  }
+});
+
+app.delete('/api/passkey/:id', requerirAuth, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'Identificador de huella no válido' });
+  }
+  try {
+    const resultado = await pool.query(
+      'DELETE FROM passkey_credenciales WHERE id = $1 AND usuario_id = $2 RETURNING id',
+      [id, req.usuario.id]
+    );
+    if (resultado.rowCount === 0) {
+      return res.status(404).json({ error: 'Huella no encontrada en esta cuenta' });
+    }
+    res.json({ ok: true, mensaje: 'Huella quitada de esta cuenta' });
+  } catch (error) {
+    console.error('Error borrando passkey:', error.message);
+    res.status(500).json({ error: 'No se pudo quitar la huella' });
   }
 });
 
