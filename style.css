@@ -7,6 +7,7 @@ body {
   font-family: system-ui, -apple-system, sans-serif;
   margin: 0;
   padding: 20px;
+  padding-bottom: 84px;
   background: #f5f7fa;
   color: #333;
   line-height: 1.6;
@@ -36,7 +37,8 @@ main {
 }
 
 /* Vista de inicio: descripción y accesos a cada sección */
-#inicio {
+#inicio,
+#servicios {
   background: transparent;
   box-shadow: none;
   padding: 0;
@@ -103,16 +105,6 @@ main {
   color: #3498db;
   font-size: 1.1rem;
   line-height: 1;
-}
-
-.btn-inicio {
-  width: auto;
-  margin: 0 0 15px;
-  padding: 8px 12px;
-  background: transparent;
-  color: #3498db;
-  border: 2px solid #3498db;
-  font-size: 0.9rem;
 }
 
 section {
@@ -440,46 +432,45 @@ button:disabled {
   color: #217dbb;
 }
 
-/* Barra del usuario dentro del encabezado */
-#usuario-email {
-  font-weight: 700;
-}
-
-#barra-usuario {
+/* Pie de página con la misma paleta del encabezado */
+#barra-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
   display: flex;
-  justify-content: center;
+  justify-content: space-around;
+  align-items: stretch;
+  padding: 8px 6px max(8px, env(safe-area-inset-bottom));
+  background: #2c3e50;
+  color: white;
+  border-radius: 12px 12px 0 0;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.btn-footer {
+  width: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  width: fit-content;
-  max-width: 100%;
-  margin: 10px auto 0;
-  padding: 6px 10px;
+  gap: 2px;
+  padding: 6px 2px;
+  background: transparent;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.75rem;
+}
+
+.btn-footer:hover {
   background: rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-  font-size: 0.85rem;
 }
 
-.btn-cerrar {
-  width: auto;
-  padding: 5px 10px;
-  background: #e74c3c;
-  font-size: 0.8rem;
-}
-
-.btn-cerrar:hover {
-  background: #c0392b;
-}
-
-.btn-perfil {
-  width: auto;
-  padding: 5px 10px;
-  background: #3498db;
-  font-size: 0.8rem;
-}
-
-.btn-perfil:hover {
-  background: #2980b9;
+.btn-footer .icono-footer {
+  font-size: 1.3rem;
+  line-height: 1;
 }
 
 /* Mensaje emergente de bienvenida */
@@ -637,7 +628,7 @@ button:disabled {
 /* Est responsive */
 @media (min-width: 600px) {
   body {
-    padding: 40px;
+    padding: 40px 40px 84px;
   }
 }
 
@@ -809,22 +800,12 @@ button:disabled {
     border-left-color: #2ea043;
   }
 
-  .btn-eliminar,
-  .btn-cerrar {
+  .btn-eliminar {
     background: #e5534b;
   }
 
-  .btn-eliminar:hover,
-  .btn-cerrar:hover {
+  .btn-eliminar:hover {
     background: #f85149;
-  }
-
-  .btn-perfil {
-    background: #58a6ff;
-  }
-
-  .btn-perfil:hover {
-    background: #79b8ff;
   }
 
   .btn-quitar-huella {
@@ -839,10 +820,6 @@ button:disabled {
   .btn-secundario:hover {
     background: #17324d;
     color: #9acbff;
-  }
-
-  #barra-usuario {
-    background: rgba(255, 255, 255, 0.08);
   }
 
   #modal-bienvenida,
@@ -889,12 +866,12 @@ button:disabled {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   }
 
-  .btn-inicio {
-    color: #58a6ff;
-    border-color: #58a6ff;
+  #barra-footer {
+    background: #16202a;
+    box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.5);
   }
 
-  .btn-inicio:hover {
-    background: #17324d;
+  .btn-footer:hover {
+    background: rgba(255, 255, 255, 0.08);
   }
 }

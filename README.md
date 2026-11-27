@@ -92,9 +92,11 @@ Cada `git push` actualiza la app automáticamente. Si cambiás `JWT_SECRET`, las
 
 La sesión queda guardada en el dispositivo 30 días. Si otra persona usa el mismo celular, debe cerrar sesión e iniciar con su cuenta.
 
-### Vista de inicio
+### Vista de inicio y navegación
 
-Después de entrar (y de cerrar el modal de bienvenida) aparece una vista de inicio con la descripción de la aplicación y tres accesos: **Gastos**, **Ingresos** y **Balance**. Cada acceso abre solo esa parte; el botón **← Volver al inicio** vuelve al menú. El encabezado sigue fijo arriba.
+Después de entrar (y de cerrar el modal de bienvenida) aparece una vista de inicio con la descripción de la aplicación y tres accesos: **Gastos**, **Ingresos** y **Balance**. Cada acceso abre solo esa parte. El encabezado muestra únicamente el título, sin nombre de usuario.
+
+Abajo queda una barra fija con el mismo estilo del encabezado y cuatro botones: **Inicio**, **Servicios**, **Ajustes** y **Cerrar**. Está en todas las vistas mientras haya sesión. **Servicios** muestra los accesos a Gastos, Ingresos y Balance; **Ajustes** abre el modal de contraseña y huella (antes se llamaba Perfil).
 
 ### Modo claro y oscuro
 
@@ -141,7 +143,7 @@ La PWA ya está preparada (`manifest.webmanifest`, `sw.js`, iconos). La forma re
 
 El workflow regenera el proyecto Android, aplica el parche de WebAuthn desde `scripts/parchear-android.js`, firma con un keystore guardado como secrets y deja el APK firmado. No hace falta JDK ni SDK en tu PC.
 
-> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v31`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
+> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v32`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
 
 ### Huella y WebAuthn en la APK
 

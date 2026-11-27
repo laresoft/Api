@@ -260,10 +260,11 @@ function actualizarBotonHuella() {
 
 const auth = document.getElementById('auth');
 const app = document.getElementById('app');
-const barraUsuario = document.getElementById('barra-usuario');
-const usuarioEmail = document.getElementById('usuario-email');
-const btnPerfil = document.getElementById('btn-perfil');
-const btnCerrarSesion = document.getElementById('btn-cerrar-sesion');
+const barraFooter = document.getElementById('barra-footer');
+const btnFooterInicio = document.getElementById('btn-footer-inicio');
+const btnFooterServicios = document.getElementById('btn-footer-servicios');
+const btnAjustes = document.getElementById('btn-ajustes');
+const btnCerrar = document.getElementById('btn-cerrar');
 const authTitulo = document.getElementById('auth-titulo');
 const authMensaje = document.getElementById('auth-mensaje');
 const formLogin = document.getElementById('form-login');
@@ -292,7 +293,7 @@ const btnRegistrarHuella = document.getElementById('btn-registrar-huella');
 const listaHuellas = document.getElementById('lista-huellas');
 const mensajeHuella = document.getElementById('mensaje-huella');
 const vistaInicio = document.getElementById('inicio');
-const btnVolverInicio = document.getElementById('btn-volver-inicio');
+const vistaServicios = document.getElementById('servicios');
 let hayHuellasRegistradas = false;
 
 // Cada acceso del inicio abre un grupo de secciones; el resto queda oculto.
@@ -373,7 +374,7 @@ document.querySelectorAll('.btn-ver-contra').forEach(boton => {
 
 function mostrarAuth(mensaje = '') {
   app.classList.add('oculto');
-  barraUsuario.classList.add('oculto');
+  barraFooter.classList.add('oculto');
   olvide.classList.add('oculto');
   restablecer.classList.add('oculto');
   auth.classList.remove('oculto');
@@ -383,7 +384,7 @@ function mostrarAuth(mensaje = '') {
 
 function mostrarOlvide() {
   app.classList.add('oculto');
-  barraUsuario.classList.add('oculto');
+  barraFooter.classList.add('oculto');
   auth.classList.add('oculto');
   restablecer.classList.add('oculto');
   olvide.classList.remove('oculto');
@@ -395,7 +396,7 @@ function mostrarOlvide() {
 
 function mostrarRestablecer() {
   app.classList.add('oculto');
-  barraUsuario.classList.add('oculto');
+  barraFooter.classList.add('oculto');
   auth.classList.add('oculto');
   olvide.classList.add('oculto');
   restablecer.classList.remove('oculto');
@@ -404,10 +405,9 @@ function mostrarRestablecer() {
 function mostrarApp(usuario) {
   auth.classList.add('oculto');
   app.classList.remove('oculto');
-  barraUsuario.classList.remove('oculto');
+  barraFooter.classList.remove('oculto');
   usuarioNombre = String(usuario.nombre || '').trim();
   usuarioCorreo = String(usuario.email || '').trim();
-  usuarioEmail.textContent = usuarioNombre || usuarioCorreo || '';
   // Sincroniza el flag local: así un dispositivo que ya tenía huella registrada
   // también la pide al abrir, aunque haya entrado con contraseña.
   cargarHuellas();
@@ -419,7 +419,7 @@ function mostrarApp(usuario) {
 function mostrarVista(nombre = 'inicio') {
   const visibles = VISTAS[nombre] || [];
   vistaInicio.classList.toggle('oculto', nombre !== 'inicio');
-  btnVolverInicio.classList.toggle('oculto', nombre === 'inicio');
+  vistaServicios.classList.toggle('oculto', nombre !== 'servicios');
   Object.keys(VISTAS).forEach(clave => {
     VISTAS[clave].forEach(id => {
       document.getElementById(id).classList.toggle('oculto', visibles.indexOf(id) === -1);
@@ -435,7 +435,8 @@ document.querySelectorAll('.tarjeta-inicio').forEach(tarjeta => {
   });
 });
 
-btnVolverInicio.addEventListener('click', () => mostrarVista('inicio'));
+btnFooterInicio.addEventListener('click', () => mostrarVista('inicio'));
+btnFooterServicios.addEventListener('click', () => mostrarVista('servicios'));
 
 function abrirPerfil() {
   perfilNombre.textContent = usuarioNombre || usuarioCorreo || 'Usuario';
@@ -445,7 +446,7 @@ function abrirPerfil() {
   mensajeContrasena.classList.remove('ok');
   ocultarContrasenas();
   modalPerfil.classList.remove('oculto');
-  btnPerfil.setAttribute('aria-expanded', 'true');
+  btnAjustes.setAttribute('aria-expanded', 'true');
   contraActual.focus();
   mostrarEstadoHuella();
   if (passkeysDisponibles()) {
@@ -458,13 +459,13 @@ function abrirPerfil() {
 
 function cerrarPerfil(devolverFoco = true) {
   modalPerfil.classList.add('oculto');
-  btnPerfil.setAttribute('aria-expanded', 'false');
+  btnAjustes.setAttribute('aria-expanded', 'false');
   formContrasena.reset();
   mensajeContrasena.textContent = '';
   mensajeContrasena.classList.remove('ok');
   mostrarMensajeHuella('');
   ocultarContrasenas();
-  if (devolverFoco) btnPerfil.focus();
+  if (devolverFoco) btnAjustes.focus();
 }
 
 async function cargarHuellas() {
@@ -720,11 +721,11 @@ formRegistro.addEventListener('submit', async (e) => {
   }
 });
 
-btnCerrarSesion.addEventListener('click', () => {
+btnCerrar.addEventListener('click', () => {
   cerrarSesion('Sesión cerrada. Ingresá para continuar.');
 });
 
-btnPerfil.addEventListener('click', abrirPerfil);
+btnAjustes.addEventListener('click', abrirPerfil);
 btnCerrarPerfil.addEventListener('click', () => cerrarPerfil());
 modalPerfil.addEventListener('click', (e) => {
   if (e.target === modalPerfil) cerrarPerfil();
