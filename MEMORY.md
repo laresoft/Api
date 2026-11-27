@@ -8,6 +8,7 @@ Memoria del proyecto entre sesiones. Máximo ~50 líneas: resumí o eliminá lo 
 - Categoría `Auto` disponible en Gastos Semifijos, con descripción sugerida `Combustible`.
 - Reportes PDF de gastos e ingresos, por día o por mes, con detalle + total y balance en modo mes. Los meses incluyen un comentario económico breve (flujo, margen/déficit y categoría de mayor peso). Descarga directa en navegadores; en la APK se envían por correo al usuario.
 - `AGENTS.md` y `MEMORY.md` están en la raíz del repo y ya fueron pusheados.
+- Heartbeat antipausa de Supabase Free: `GET /api/heartbeat` actualiza la fila única `app_actividad`. El usuario configura cron-job.org cada 12 h con alerta por email; no se generan gastos/ingresos falsos.
 
 ## Decisiones (y por qué)
 - Cualquiera debe poder abrirlo con doble clic e instalarlo.
@@ -35,3 +36,4 @@ Memoria del proyecto entre sesiones. Máximo ~50 líneas: resumí o eliminá lo 
 ## Próximos pasos
 - Confirmar en producción que un monto `12.50` se guarda y suma con decimales (no se pudo probar contra la BD desde este entorno).
 - Si se recupera el acceso a Supabase, verificar que `gastos.monto` e `ingresos.monto` sean `NUMERIC(12,2)`.
+- Confirmar que cron-job.org recibe `200` de `/api/heartbeat` y que Supabase no vuelve a pausarse.

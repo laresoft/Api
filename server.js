@@ -275,6 +275,16 @@ async function inicializarDB() {
     )
   `);
   await pool.query('CREATE INDEX IF NOT EXISTS idx_recuperaciones_token ON recuperaciones(token_hash)');
+
+  // Una sola fila de actividad: permite mantener despierto el proyecto Free de
+  // Supabase sin inventar gastos ni ingresos. La actualiza GET /api/heartbeat.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS app_actividad (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      ultima_actividad TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query('INSERT INTO app_actividad (id) VALUES (1) ON CONFLICT (id) DO NOTHING');
 }
 
 // Validación de fecha compartida (local, nunca UTC; sin fechas futuras ni del mes anterior)
@@ -402,6 +412,23 @@ app.get('/api/me', requerirAuth, async (req, res) => {
   } catch (error) {
     console.error('Error leyendo usuario:', error.message);
     res.status(500).json({ error: 'No se pudo leer el usuario' });
+  }
+});
+
+// Latido para mantener activo el proyecto Free de Supabase.
+// No requiere sesión: solo actualiza una fila, sin datos personales ni montos.
+app.get('/api/heartbeat', async (req, res) => {
+  try {
+    const resultado = await pool.query(`
+      INSERT INTO app_actividad (id, ultima_actividad)
+      VALUES (1, NOW())
+      ON CONFLICT (id) DO UPDATE SET ultima_actividad = NOW()
+      RETURNING ultima_actividad
+    `);
+    res.json({ ok: true, ultima_actividad: resultado.rows[0].ultima_actividad });
+  } catch (error) {
+    console.error('Error en heartbeat:', error.message);
+    res.status(500).json({ ok: false, error: 'No se pudo registrar la actividad' });
   }
 });
 

@@ -24,6 +24,7 @@ Proyecto **Cuentas** (raíz del repo): API Node/Express + frontend vanilla servi
 - No eliminar esa migración: es la forma en que producción recibe cambios de esquema sin acceso al dashboard. Es idempotente y corre en cada arranque.
 - `pg.types.setTypeParser(1700, Number)` convierte NUMERIC a número; sin esto `toFixed`/sumas del frontend fallan.
 - Toda consulta de datos debe filtrar por `usuario_id = req.usuario.id` (también DELETE y `/balance`). El aislamiento multiusuario depende de eso.
+- Supabase Free pausa proyectos con poca actividad de BD durante 7 días. `app_actividad` tiene una sola fila (`id=1`) que actualiza `GET /api/heartbeat`; un cron externo (cron-job.org) lo llama cada 12 h. No inventar gastos/ingresos para generar actividad. Esto es prevención, no backup: si se pausa igual, hay que reactivarlo desde el dashboard del dueño.
 
 ## Frontend / PWA
 - `index.html`, `script.js` y `style.css` se sirven tal cual: se editan directo, sin transpilación. Textos y comentarios en español.
@@ -50,5 +51,6 @@ Proyecto **Cuentas** (raíz del repo): API Node/Express + frontend vanilla servi
 ## Límites
 - ✅ Siempre: respetar las reglas de fechas, mantener los textos en español.
 - ✅ Siempre: actualizar `MEMORY.md` al terminar cada tarea.
+- ✅ Siempre: actualizar `README.md` al terminar cada tarea y actualizarlo en el repositorio de GitHub.
 - ⚠️ Pregunta antes: crear archivos nuevos, cambiar el formato de los datos guardados.
 - 🚫 Nunca: añadir un paso de build. 
