@@ -342,6 +342,13 @@ button:disabled {
 .balance-tarjeta.total.negativo { background: #fdedec; }
 .balance-tarjeta.total.negativo strong { color: #c0392b; }
 
+.balance-ahorros {
+  margin-top: 8px;
+}
+
+.balance-tarjeta.ahorro strong { color: #27ae60; }
+.balance-tarjeta.fondo strong { color: #2980b9; }
+
 /* Resultados */
 #resultado-gastos, #resultado-ingresos, #resultado-balance {
   margin-top: 15px;
@@ -793,6 +800,14 @@ button:disabled {
 
   .balance-tarjeta.total.negativo strong {
     color: #ff7b72;
+  }
+
+  .balance-tarjeta.ahorro strong {
+    color: #56d364;
+  }
+
+  .balance-tarjeta.fondo strong {
+    color: #79b8ff;
   }
 
   .balance-tarjeta .etiqueta,

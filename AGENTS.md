@@ -20,17 +20,18 @@ Proyecto **Cuentas** (raíz del repo): API Node/Express + frontend vanilla servi
 - `JWT_SECRET` debe coincidir entre local y Render; cambiarlo invalida todas las sesiones.
 
 ## Base de datos (Supabase)
-- El esquema **no está completo en el repo**: `gastos` e `ingresos` ya existen en Supabase. `inicializarDB()` crea `usuarios`/`recuperaciones`, agrega `usuario_id` con FK, índices y migra `monto` a `NUMERIC(12,2)` si son enteros.
+- El esquema **no está completo en el repo**: `gastos` e `ingresos` ya existen en Supabase. `inicializarDB()` crea `usuarios`/`recuperaciones`/`ahorros`, agrega `usuario_id` con FK, índices y migra `monto` a `NUMERIC(12,2)` si son enteros.
 - No eliminar esa migración: es la forma en que producción recibe cambios de esquema sin acceso al dashboard. Es idempotente y corre en cada arranque.
 - `pg.types.setTypeParser(1700, Number)` convierte NUMERIC a número; sin esto `toFixed`/sumas del frontend fallan.
+- `Ahorro` y `Fondo Emergencia` se guardan en `ahorros`, no en `gastos`: `POST /gastos` decide por categoría. La migración copia registros viejos usando `origen_id` para no duplicar en reinicios y luego borra esas filas de `gastos`. En `/balance` se suman aparte y son solo informativos (no alteran `totalGastos` ni `balance`).
 - Toda consulta de datos debe filtrar por `usuario_id = req.usuario.id` (también DELETE y `/balance`). El aislamiento multiusuario depende de eso.
 - Supabase Free pausa proyectos con poca actividad de BD durante 7 días. `app_actividad` tiene una sola fila (`id=1`) que actualiza `GET /api/heartbeat`; un cron externo (cron-job.org) lo llama cada 12 h. No inventar gastos/ingresos para generar actividad. Esto es prevención, no backup: si se pausa igual, hay que reactivarlo desde el dashboard del dueño.
 
 ## Frontend / PWA
 - `index.html`, `script.js` y `style.css` se sirven tal cual: se editan directo, sin transpilación. Textos y comentarios en español.
 - `#app` arranca en `#inicio` y también tiene `#servicios`; `mostrarVista()` usa el mapa `VISTAS` para mostrar solo el grupo de secciones elegido. Al agregar una sección nueva, sumarla a `VISTAS` o no será visible desde inicio/servicios. La navegación vive en `#barra-footer` (fuera de `#app`), visible solo con sesión; el header no muestra datos del usuario. Los iconos de los encabezados de lista son SVG en línea con `currentColor` (rojo/verde); no usar emoji porque no se pueden colorear ni partir la balanza. El título del header se actualiza en `mostrarVista()` desde `TITULOS_HEADER`; `mostrarAuth`/`mostrarOlvide`/`mostrarRestablecer` lo devuelven al valor por defecto.
-- `sw.js` hace caché cache-first de archivos estáticos. Al cambiar `index.html`/`script.js`/`style.css`/iconos, subir `NOMBRE_CACHE` (hoy `cuentas-v37`) o los usuarios ven UI vieja. Las rutas de API están excluidas a propósito (incluidas `/api/passkey/*`).
-- Ojo: la fuente real de la versión de caché es `sw.js` (`cuentas-v37`); README y MEMORY se actualizan al mismo tiempo.
+- `sw.js` hace caché cache-first de archivos estáticos. Al cambiar `index.html`/`script.js`/`style.css`/iconos, subir `NOMBRE_CACHE` (hoy `cuentas-v38`) o los usuarios ven UI vieja. Las rutas de API están excluidas a propósito (incluidas `/api/passkey/*`).
+- Ojo: la fuente real de la versión de caché es `sw.js` (`cuentas-v38`); README y MEMORY se actualizan al mismo tiempo.
 - `capacitor.config.json` apunta a la URL de Render: la APK de Android y la PWA del iPhone no requieren recompilar al cambiar la web. En iPhone se agrega con Safari → Compartir → Agregar a pantalla de inicio; las etiquetas `apple-touch-icon`/`apple-mobile-web-app-*` son intencionales.
 - El WebView de la APK no descarga `<a download>` con blob, no expone `navigator.share` **y ignora `window.print()`**: en la APK los reportes se envían por correo (`POST /reporte/email`, adjunto vía Brevo) al email del token. En navegadores se descarga el PDF de `GET /reporte`. Si algún día se recompila con `@capacitor/filesystem` + `@capacitor/share`, `pluginsGuardadoDisponibles()` los detecta y guarda/comparte el PDF sin correo.
 

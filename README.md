@@ -98,6 +98,10 @@ Después de entrar (y de cerrar el modal de bienvenida) aparece una vista de ini
 
 Abajo queda una barra fija con el mismo estilo del encabezado y cuatro botones: **Inicio**, **Servicios**, **Ajustes** y **Cerrar**. Está en todas las vistas mientras haya sesión. **Servicios** muestra los accesos a Gastos, Ingresos y Balance; **Ajustes** abre el modal de contraseña y huella (antes se llamaba Perfil). Los encabezados de lista llevan iconos SVG: círculo rojo con flecha hacia abajo en **Gastos**, verde con flecha hacia arriba en **Ingresos** y una balanza con plato rojo y verde en **Balance Financiero**.
 
+### Ahorro y Fondo Emergencia
+
+Las categorías `Ahorro` y `Fondo Emergencia` se siguen eligiendo en **Registrar Gasto**, pero se guardan en la tabla `ahorros`, separada de `gastos`. En **Balance Financiero** aparecen debajo de las tres tarjetas con los totales del mes seleccionado; son solo informativos: no se descuentan del balance ni cuentan como gastos. Los registros anteriores se migran una sola vez al iniciar, usando `origen_id` para no duplicarlos. Por eso esas categorías ya no figuran en la lista ni en los PDF de Gastos.
+
 ### Modo claro y oscuro
 
 La app sigue automáticamente el modo del celular: si activás el modo oscuro desde Ajustes, la interfaz cambia sola y vuelve al claro al desactivarlo. No hay botón: usa la preferencia del sistema (`prefers-color-scheme`), y también cambia el color de la barra del navegador o la PWA. El cuadro del sistema de la huella lo pintan Android/iOS, no la app.
@@ -143,7 +147,7 @@ La PWA ya está preparada (`manifest.webmanifest`, `sw.js`, iconos). La forma re
 
 El workflow regenera el proyecto Android, aplica el parche de WebAuthn desde `scripts/parchear-android.js`, firma con un keystore guardado como secrets y deja el APK firmado. No hace falta JDK ni SDK en tu PC.
 
-> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v37`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
+> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v38`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
 
 ### Huella y WebAuthn en la APK
 
@@ -210,6 +214,6 @@ Las rutas marcadas con 🔒 requieren la cabecera `Authorization: Bearer <token>
 | `GET` | `/ingresos?fecha=YYYY-MM-DD` | 🔒 Ingresos del usuario en un día |
 | `GET` | `/ingresos?mes=YYYY-MM` | 🔒 Ingresos del usuario en un mes |
 | `DELETE` | `/ingresos/:id` | 🔒 Eliminar ingreso propio |
-| `GET` | `/balance?mes=YYYY-MM` | 🔒 Ingresos, gastos y balance del mes del usuario |
+| `GET` | `/balance?mes=YYYY-MM` | 🔒 Ingresos, gastos, balance y totales de Ahorro/Fondo Emergencia del mes |
 | `GET` | `/api/heartbeat` | Latido antipausa de Supabase Free (actualiza una fila, sin datos personales) |
 | `GET` | `/.well-known/assetlinks.json` | Asociación del dominio con la APK (passkeys en WebView) |

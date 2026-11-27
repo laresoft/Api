@@ -1376,6 +1376,16 @@ async function calcularBalance() {
           <small>${esPositivo ? '✅ Positivo' : '⚠️ Negativo'}</small>
         </div>
       </div>
+      <div class="balance-tarjetas balance-ahorros">
+        <div class="balance-tarjeta ahorro">
+          <span class="etiqueta">Ahorro</span>
+          <strong>$${Number(data.ahorro || 0).toFixed(2)}</strong>
+        </div>
+        <div class="balance-tarjeta fondo">
+          <span class="etiqueta">Fondo Emergencia</span>
+          <strong>$${Number(data.fondoEmergencia || 0).toFixed(2)}</strong>
+        </div>
+      </div>
     `;
   } catch (error) {
     resultadoBalance.innerHTML = `<p>${error.message}</p>`;
