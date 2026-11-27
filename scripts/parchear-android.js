@@ -7,7 +7,16 @@ const path = require('path');
 
 const raiz = path.resolve(__dirname, '..');
 const raizJava = path.join(raiz, 'android', 'app', 'src', 'main', 'java');
+const raizMain = path.join(raiz, 'android', 'app', 'src', 'main');
 const archivoGradle = path.join(raiz, 'android', 'app', 'build.gradle');
+const archivoManifest = path.join(raizMain, 'AndroidManifest.xml');
+const archivoStrings = path.join(raizMain, 'res', 'values', 'strings.xml');
+
+const configuracion = JSON.parse(
+  fs.readFileSync(path.join(raiz, 'capacitor.config.json'), 'utf8')
+);
+const origenServidor = String((configuracion.server && configuracion.server.url) || '')
+  .replace(/\/$/, '');
 
 function buscarMainActivity(directorio) {
   if (!fs.existsSync(directorio)) return null;
@@ -96,4 +105,36 @@ if (!gradle.includes('androidx.credentials:credentials:')) {
   );
   fs.writeFileSync(archivoGradle, gradle, 'utf8');
   console.log('build.gradle: dependencias de Credential Manager y WebKit agregadas');
+}
+
+// La asociación debe declararse también desde la app hacia el sitio. Sin este
+// bloque, Credential Manager no valida el RP ID aunque el servidor ya publique
+// /.well-known/assetlinks.json correctamente.
+if (!origenServidor) {
+  console.error('capacitor.config.json no define server.url; no se puede declarar asset_statements');
+  process.exit(1);
+}
+
+const assetStatements = `[{\\"include\\": \\"${origenServidor}/.well-known/assetlinks.json\\"}]`;
+
+let strings = fs.readFileSync(archivoStrings, 'utf8');
+if (!strings.includes('name="asset_statements"')) {
+  const linea = `    <string name="asset_statements" translatable="false">${assetStatements}</string>\n`;
+  strings = strings.replace('</resources>', `${linea}</resources>`);
+  fs.writeFileSync(archivoStrings, strings, 'utf8');
+  console.log('strings.xml: asset_statements agregado');
+}
+
+let manifest = fs.readFileSync(archivoManifest, 'utf8');
+if (!manifest.includes('android:name="asset_statements"')) {
+  const meta = `        <meta-data\n            android:name="asset_statements"\n            android:resource="@string/asset_statements" />\n`;
+  const inicio = manifest.indexOf('<application');
+  const finEtiqueta = inicio === -1 ? -1 : manifest.indexOf('>', inicio);
+  if (finEtiqueta === -1) {
+    console.error('No se encontró la etiqueta <application> en AndroidManifest.xml');
+    process.exit(1);
+  }
+  manifest = manifest.slice(0, finEtiqueta + 1) + '\n' + meta + manifest.slice(finEtiqueta + 1);
+  fs.writeFileSync(archivoManifest, manifest, 'utf8');
+  console.log('AndroidManifest.xml: asset_statements agregado');
 }

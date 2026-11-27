@@ -129,13 +129,15 @@ La PWA ya está preparada (`manifest.webmanifest`, `sw.js`, iconos). La forma re
 
 El workflow regenera el proyecto Android, aplica el parche de WebAuthn desde `scripts/parchear-android.js`, firma con un keystore guardado como secrets y deja el APK firmado. No hace falta JDK ni SDK en tu PC.
 
-> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v21`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
+> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v22`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
 
 ### Huella y WebAuthn en la APK
 
-El servidor publica la asociación en `https://cuentas-k956.onrender.com/.well-known/assetlinks.json` con la huella SHA-256 del certificado con que se firma la APK (`com.cuentas.app`). Ese valor es público; la clave privada del keystore vive solo en los Secrets de GitHub (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`). Si se regenera el keystore, hay que actualizar `HUELLA_APK` en `server.js` y volver a compilar.
+El servidor publica la asociación en `https://cuentas-k956.onrender.com/.well-known/assetlinks.json` con las relaciones `common.handle_all_urls` y `common.get_login_creds`, y la huella SHA-256 del certificado con que se firma la APK (`com.cuentas.app`). Ese valor es público; la clave privada del keystore vive solo en los Secrets de GitHub (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`). Si se regenera el keystore, hay que actualizar `HUELLA_APK` en `server.js` y volver a compilar.
 
-El parche nativo activa WebAuthn, verifica `getWebAuthenticationSupport()` y recarga la WebView para que `PublicKeyCredential` exista antes de que corra el `script.js`. El dispositivo necesita **Android System WebView 131 o superior** (actualizable desde Play Store) y Google Play Services. Si el WebView es viejo, en **Perfil** aparece *“Huella no disponible en este dispositivo…”* en vez de los botones; abriendo la web en Chrome con `?diag=1` se ven los motivos exactos. La contraseña sigue funcionando igual.
+La app también declara la asociación inversa: el parche agrega `asset_statements` a `strings.xml` y su `meta-data` al `AndroidManifest.xml`, apuntando al mismo `assetlinks.json` (tomado de `capacitor.config.json`). Sin ese paso Credential Manager rechaza el RP ID aunque el archivo del servidor esté bien.
+
+El parche nativo activa WebAuthn, verifica `getWebAuthenticationSupport()` y recarga la WebView para que `PublicKeyCredential` exista antes de que corra el `script.js`. El dispositivo necesita **Android System WebView 131 o superior** (actualizable desde Play Store), Google Play Services actualizado y una pantalla de bloqueo configurada. Si el WebView es viejo, en **Perfil** aparece *“Huella no disponible en este dispositivo…”* en vez de los botones; abriendo la web en Chrome con `?diag=1` se ven los motivos exactos. La contraseña sigue funcionando igual.
 
 > El keystore de esta APK es nuevo: **desinstalá la APK anterior antes de instalar esta**. Android no permite actualizar una app firmada con otro certificado. Las huellas registradas con la firma anterior deben registrarse de nuevo.
 

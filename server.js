@@ -49,7 +49,10 @@ app.get('/restablecer', (req, res) => {
 // Google y Android descargan este archivo desde el RP ID (dominio de Render).
 app.get('/.well-known/assetlinks.json', (req, res) => {
   res.json([{
-    relation: ['delegate_permission/common.get_login_creds'],
+    relation: [
+      'delegate_permission/common.handle_all_urls',
+      'delegate_permission/common.get_login_creds'
+    ],
     target: {
       namespace: 'android_app',
       package_name: PAQUETE_ANDROID,

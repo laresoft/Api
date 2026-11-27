@@ -16,7 +16,7 @@ Memoria del proyecto entre sesiones. Máximo ~50 líneas: resumí o eliminá lo 
 - Fecha editable en el formulario: permite registrar días pasados pero no días posteriores al actual.
 - Los cambios de esquema de la BD se aplican en `inicializarDB()` al arrancar: no hay acceso al dashboard de Supabase.
 - iPhone usa PWA (Agregar a pantalla de inicio) en vez de IPA: no requiere Mac ni cuenta de Apple Developer.
-- El service worker solo cachea archivos de interfaz; cada cambio visual exige subir `NOMBRE_CACHE` en `sw.js` (hoy `cuentas-v21`).
+- El service worker solo cachea archivos de interfaz; cada cambio visual exige subir `NOMBRE_CACHE` en `sw.js` (hoy `cuentas-v22`).
 - "Cambiar Contraseña" ya no es una sección de `<main>`: vive en el modal `#modal-perfil`, abierto desde el botón `Perfil` del header (entre el email y `Cerrar sesión`). Título `Perfil`, nombre del usuario en grande (`usuario.nombre`, fallback al email) y correo como texto no editable con etiqueta `Correo:`. Se cierra con botón, clic fuera o `Esc`.
 - `#barra-usuario` tiene fondo claro redondeado dentro del header azul: nombre + `Perfil` + `Cerrar sesión` comparten esa banda. El header sigue siendo `sticky`.
 - Al cambiar la contraseña desde Perfil se actualiza la copia guardada en el dispositivo si "Recordar contraseña" está activa; si está desmarcada, se borra. `POST /cambiar-contrasena` no cambió.
@@ -29,6 +29,8 @@ Memoria del proyecto entre sesiones. Máximo ~50 líneas: resumí o eliminá lo 
 - Fase 2: huella del certificado `8F:DA:...:31` (pública) hardcodeada en `server.js` como `HUELLA_APK`; se publica en `/.well-known/assetlinks.json` y se acepta como origin `android:apk-key-hash:j9pvo1UJKllPrdAiSfq1aCcrFVuSBfz-3ns3t9aSkTE`. La clave privada está en Secrets de GitHub; si se regenera, cambiar también el origin esperado.
 - Android WebView necesita versión 131+ y Play Services además del parche nativo; si no, `PublicKeyCredential` no existe. El frontend ya no oculta la sección sin explicación: `#estado-huella` dice por qué y `?diag=1` agrega detalle.
 - El parche nativo recarga la WebView después de habilitar WebAuthn: Capacitor empieza a cargar la URL dentro de `super.onCreate()`, así que sin el reload la página puede inicializarse sin la API.
+- Credential Manager necesita también la declaración inversa app→sitio: `asset_statements` en `strings.xml` + `meta-data` en el `AndroidManifest`, y `assetlinks.json` con `common.handle_all_urls` **y** `common.get_login_creds`. Sin eso, `navigator.credentials.create()` falla con `NotReadableError: An unknown error occurred while talking to the credential manager`.
+- Si aparece ese error, actualizar Google Play Services y verificar pantalla de bloqueo; la UI traduce `NotReadableError` a un mensaje en español.
 - En la APK (WebView) no funcionan `<a download>` con blob, `navigator.share` ni `window.print()`: se envía el PDF por correo con `POST /reporte/email`. Para guardarlo dentro de la app hace falta recompilar con `@capacitor/filesystem` y `@capacitor/share`; el frontend ya detecta esos plugins.
 
 ## Aprendizajes y errores a evitar

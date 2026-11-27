@@ -672,6 +672,8 @@ btnLoginHuella.addEventListener('click', async () => {
   } catch (error) {
     if (error.name === 'NotAllowedError') {
       authMensaje.textContent = 'Cancelaste o no se permitió usar la huella. Podés entrar con tu contraseña.';
+    } else if (error.name === 'NotReadableError') {
+      authMensaje.textContent = 'El gestor de credenciales no respondió. Actualizá Google Play Services, verificá que tengas pantalla de bloqueo y probá de nuevo.';
     } else {
       authMensaje.textContent = error.message || 'No se pudo ingresar con la huella';
     }
@@ -705,6 +707,8 @@ btnRegistrarHuella.addEventListener('click', async () => {
   } catch (error) {
     if (error.name === 'NotAllowedError') {
       mostrarMensajeHuella('Cancelaste o no se permitió usar la huella.');
+    } else if (error.name === 'NotReadableError') {
+      mostrarMensajeHuella('El gestor de credenciales no respondió. Actualizá Google Play Services y verificá que tengas pantalla de bloqueo (PIN, patrón o huella).');
     } else {
       mostrarMensajeHuella(error.message || 'No se pudo registrar la huella');
     }
