@@ -300,35 +300,50 @@ async function inicializarDB() {
   await pool.query('CREATE INDEX IF NOT EXISTS idx_gastos_usuario ON gastos(usuario_id)');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_ingresos_usuario ON ingresos(usuario_id)');
 
-  // Ahorro y Fondo Emergencia se guardan aparte: son información del balance, no gastos.
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS ahorros (
-      id SERIAL PRIMARY KEY,
-      origen_id INTEGER UNIQUE,
-      fecha TEXT NOT NULL,
-      categoria TEXT NOT NULL CHECK (categoria IN ('Ahorro', 'Fondo Emergencia')),
-      descripcion TEXT NOT NULL,
-      monto NUMERIC(12,2) NOT NULL CHECK (monto > 0),
-      usuario_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE,
-      creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `);
-  await pool.query('CREATE INDEX IF NOT EXISTS idx_ahorros_usuario ON ahorros(usuario_id)');
-  await pool.query('CREATE INDEX IF NOT EXISTS idx_ahorros_usuario_fecha ON ahorros(usuario_id, fecha)');
-
-  // Migración única: copia lo que ya estaba en gastos y lo saca de la tabla de gastos.
-  // origen_id evita duplicar si el proceso se reinicia a mitad de la migración.
-  const migrados = await pool.query(`
-    INSERT INTO ahorros (origen_id, fecha, categoria, descripcion, monto, usuario_id)
-    SELECT g.id, g.fecha, g.categoria, g.descripcion, g.monto, g.usuario_id
-    FROM gastos g
-    WHERE g.categoria IN ('Ahorro', 'Fondo Emergencia')
-      AND NOT EXISTS (SELECT 1 FROM ahorros a WHERE a.origen_id = g.id)
-    RETURNING id
-  `);
-  await pool.query(`DELETE FROM gastos WHERE categoria IN ('Ahorro', 'Fondo Emergencia')`);
-  if (migrados.rowCount) {
-    console.log(`  Migrados ${migrados.rowCount} registros de ahorro a la tabla ahorros`);
+  // Reversión de la separación temporal: si quedó la tabla ahorros, devolver sus filas
+  // a gastos para que se comporten como cualquier otro gasto (lista, PDF y borrado).
+  const tablaAhorros = await pool.query(`SELECT to_regclass('public.ahorros') AS nombre`);
+  if (tablaAhorros.rows[0].nombre) {
+    const conId = await pool.query(`
+      INSERT INTO gastos (id, fecha, categoria, descripcion, monto, tipo, usuario_id)
+      SELECT a.origen_id, a.fecha, a.categoria, a.descripcion, a.monto, 'ocasional', a.usuario_id
+      FROM ahorros a
+      WHERE a.origen_id IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM gastos g WHERE g.id = a.origen_id)
+    `);
+    const conColision = await pool.query(`
+      INSERT INTO gastos (fecha, categoria, descripcion, monto, tipo, usuario_id)
+      SELECT a.fecha, a.categoria, a.descripcion, a.monto, 'ocasional', a.usuario_id
+      FROM ahorros a
+      WHERE a.origen_id IS NOT NULL
+        AND EXISTS (SELECT 1 FROM gastos g WHERE g.id = a.origen_id)
+        AND NOT EXISTS (
+          SELECT 1 FROM gastos g
+          WHERE g.categoria = a.categoria AND g.fecha = a.fecha
+            AND g.descripcion = a.descripcion AND g.monto = a.monto
+            AND g.usuario_id IS NOT DISTINCT FROM a.usuario_id
+        )
+    `);
+    const sinId = await pool.query(`
+      INSERT INTO gastos (fecha, categoria, descripcion, monto, tipo, usuario_id)
+      SELECT a.fecha, a.categoria, a.descripcion, a.monto, 'ocasional', a.usuario_id
+      FROM ahorros a
+      WHERE a.origen_id IS NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM gastos g
+          WHERE g.categoria = a.categoria AND g.fecha = a.fecha
+            AND g.descripcion = a.descripcion AND g.monto = a.monto
+            AND g.usuario_id IS NOT DISTINCT FROM a.usuario_id
+        )
+    `);
+    await pool.query(`
+      SELECT setval(pg_get_serial_sequence('gastos', 'id'), COALESCE((SELECT MAX(id) FROM gastos), 1))
+    `);
+    await pool.query('DROP TABLE ahorros');
+    const total = conId.rowCount + conColision.rowCount + sinId.rowCount;
+    if (total) {
+      console.log(`  Devueltos ${total} registros de Ahorro/Fondo Emergencia a gastos`);
+    }
   }
 
   // Los montos permiten decimales: si alguna columna quedó como entero, la convertimos.
@@ -462,7 +477,6 @@ app.post('/registro', async (req, res) => {
     if (total.rows[0].n === 1) {
       await pool.query('UPDATE gastos SET usuario_id = $1 WHERE usuario_id IS NULL', [usuario.id]);
       await pool.query('UPDATE ingresos SET usuario_id = $1 WHERE usuario_id IS NULL', [usuario.id]);
-      await pool.query('UPDATE ahorros SET usuario_id = $1 WHERE usuario_id IS NULL', [usuario.id]);
     }
 
     res.status(201).json({
@@ -961,20 +975,12 @@ app.post('/gastos', requerirAuth, async (req, res) => {
     return res.status(400).json({ error: 'Categoría no válida' });
   }
 
-  const esAhorro = categoria === 'Ahorro' || categoria === 'Fondo Emergencia';
-
   try {
-    const resultado = esAhorro
-      ? await pool.query(
-          `INSERT INTO ahorros (fecha, categoria, descripcion, monto, usuario_id)
-           VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-          [fecha, categoria, descripcion, monto, req.usuario.id]
-        )
-      : await pool.query(
-          `INSERT INTO gastos (fecha, categoria, descripcion, monto, tipo, usuario_id)
-           VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-          [fecha, categoria, descripcion, monto, tipo, req.usuario.id]
-        );
+    const resultado = await pool.query(
+      `INSERT INTO gastos (fecha, categoria, descripcion, monto, tipo, usuario_id)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      [fecha, categoria, descripcion, monto, tipo, req.usuario.id]
+    );
 
     res.json({ id: resultado.rows[0].id, mensaje: 'Gasto registrado correctamente' });
   } catch (error) {
@@ -1119,7 +1125,7 @@ app.get('/balance', requerirAuth, async (req, res) => {
     const [resultadoGastos, resultadoIngresos, resultadoAhorros] = await Promise.all([
       pool.query(`SELECT COALESCE(SUM(monto), 0) AS "totalGastos" FROM gastos${where}`, params),
       pool.query(`SELECT COALESCE(SUM(monto), 0) AS "totalIngresos" FROM ingresos${where}`, params),
-      pool.query(`SELECT categoria, COALESCE(SUM(monto), 0) AS total FROM ahorros${where} GROUP BY categoria`, params)
+      pool.query(`SELECT categoria, COALESCE(SUM(monto), 0) AS total FROM gastos${where} AND categoria IN ('Ahorro', 'Fondo Emergencia') GROUP BY categoria`, params)
     ]);
 
     const totalGastos = Number(resultadoGastos.rows[0].totalGastos);

@@ -100,7 +100,7 @@ Abajo queda una barra fija con el mismo estilo del encabezado y cuatro botones: 
 
 ### Ahorro y Fondo Emergencia
 
-Las categorías `Ahorro` y `Fondo Emergencia` se siguen eligiendo en **Registrar Gasto**, pero se guardan en la tabla `ahorros`, separada de `gastos`. En **Balance Financiero** aparecen debajo de las tres tarjetas con los totales del mes seleccionado; son solo informativos: no se descuentan del balance ni cuentan como gastos. Los registros anteriores se migran una sola vez al iniciar, usando `origen_id` para no duplicarlos. Por eso esas categorías ya no figuran en la lista ni en los PDF de Gastos.
+Las categorías `Ahorro` y `Fondo Emergencia` se registran como cualquier otro gasto: quedan en `gastos`, aparecen en la lista, se pueden eliminar y entran en los PDF de Gastos. En **Balance Financiero** se siguen mostrando debajo de las tres tarjetas como dos totales del mes seleccionado; son solo informativos y no cambian el balance calculado. La tabla temporal `ahorros` se eliminó al arrancar y sus registros se devolvieron a `gastos`.
 
 ### Modo claro y oscuro
 
@@ -147,7 +147,7 @@ La PWA ya está preparada (`manifest.webmanifest`, `sw.js`, iconos). La forma re
 
 El workflow regenera el proyecto Android, aplica el parche de WebAuthn desde `scripts/parchear-android.js`, firma con un keystore guardado como secrets y deja el APK firmado. No hace falta JDK ni SDK en tu PC.
 
-> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v38`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
+> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v39`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
 
 ### Huella y WebAuthn en la APK
 

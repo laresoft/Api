@@ -1,7 +1,7 @@
 // Service Worker básico: guarda la interfaz en caché para que cargue rápido.
 // Los datos siguen viniendo siempre de la API (no se guardan aquí).
 
-const NOMBRE_CACHE = 'cuentas-v38';
+const NOMBRE_CACHE = 'cuentas-v39';
 const ARCHIVOS = ['/', '/index.html', '/style.css', '/script.js', '/manifest.webmanifest',
                   '/icon-192.png', '/icon-512.png'];
 
