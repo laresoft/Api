@@ -973,7 +973,7 @@ const descripcionesPorCategoria = {
   Celular: 'Recarga o plan de celular',
   Alimentación: 'Compra de alimentos',
   Auto: 'Combustible',
-  Transporte: 'Pasaje o combustible',
+  Transporte: 'Pasaje',
   Salud: 'Consulta o medicamento',
   Higiene: 'Productos de higiene',
   Salidas: 'Salida con amigos',

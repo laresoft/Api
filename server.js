@@ -961,7 +961,7 @@ app.post('/gastos', requerirAuth, async (req, res) => {
   if (!validarFecha(fecha, res)) return;
 
   const categoriasFijas = ['Vivienda', 'Seguros', 'Electricidad', 'Agua', 'Internet', 'Celular'];
-  const categoriasSemifijas = ['Alimentación', 'Transporte', 'Salud', 'Higiene'];
+  const categoriasSemifijas = ['Alimentación', 'Auto', 'Transporte', 'Salud', 'Higiene'];
   const categoriasOcasionales = ['Salidas', 'Entretenimiento', 'Ahorro', 'Fondo Emergencia', 'Ropa', 'Zapatos', 'Otros'];
 
   let tipo;
@@ -1294,7 +1294,7 @@ async function generarPDFReporte({ tipo, modo, valor, usuarioId, email }) {
     doc.text(`Total: $${total.toFixed(2)}`, xMonto - 60, y, { width: 145, align: 'right' });
     y += 20;
 
-    if (tipo === 'gastos') {
+    if (tipo === 'gastos' && modo === 'mes') {
       if (y + 40 > doc.page.height - doc.page.margins.bottom) {
         doc.addPage();
         y = doc.page.margins.top;

@@ -30,10 +30,10 @@ Proyecto **Cuentas** (raíz del repo): API Node/Express + frontend vanilla servi
 ## Frontend / PWA
 - `index.html`, `script.js` y `style.css` se sirven tal cual: se editan directo, sin transpilación. Textos y comentarios en español.
 - `#app` arranca en `#inicio` y también tiene `#servicios`; `mostrarVista()` usa el mapa `VISTAS` para mostrar solo el grupo de secciones elegido. Al agregar una sección nueva, sumarla a `VISTAS` o no será visible desde inicio/servicios. La navegación vive en `#barra-footer` (fuera de `#app`), visible solo con sesión; el header no muestra datos del usuario. Los iconos de los encabezados de lista son SVG en línea con `currentColor` (rojo/verde); no usar emoji porque no se pueden colorear ni partir la balanza. El título del header se actualiza en `mostrarVista()` desde `TITULOS_HEADER`; `mostrarAuth`/`mostrarOlvide`/`mostrarRestablecer` lo devuelven al valor por defecto.
-- `sw.js` hace caché cache-first de archivos estáticos. Al cambiar `index.html`/`script.js`/`style.css`/iconos, subir `NOMBRE_CACHE` (hoy `cuentas-v39`) o los usuarios ven UI vieja. Las rutas de API están excluidas a propósito (incluidas `/api/passkey/*`).
-- Ojo: la fuente real de la versión de caché es `sw.js` (`cuentas-v39`); README y MEMORY se actualizan al mismo tiempo.
+- `sw.js` hace caché cache-first de archivos estáticos. Al cambiar `index.html`/`script.js`/`style.css`/iconos, subir `NOMBRE_CACHE` (hoy `cuentas-v40`) o los usuarios ven UI vieja. Las rutas de API están excluidas a propósito (incluidas `/api/passkey/*`).
+- Ojo: la fuente real de la versión de caché es `sw.js` (`cuentas-v40`); README y MEMORY se actualizan al mismo tiempo.
 - `capacitor.config.json` apunta a la URL de Render: la APK de Android y la PWA del iPhone no requieren recompilar al cambiar la web. En iPhone se agrega con Safari → Compartir → Agregar a pantalla de inicio; las etiquetas `apple-touch-icon`/`apple-mobile-web-app-*` son intencionales.
-- El WebView de la APK no descarga `<a download>` con blob, no expone `navigator.share` **y ignora `window.print()`**: en la APK los reportes se envían por correo (`POST /reporte/email`, adjunto vía Brevo) al email del token. En navegadores se descarga el PDF de `GET /reporte`. `generarPDFReporte()` agrega en los PDF de Gastos dos líneas con la suma de `Ahorro` y `Fondo Emergencia` calculadas desde las filas del período (misma consulta, sin query extra). Si algún día se recompila con `@capacitor/filesystem` + `@capacitor/share`, `pluginsGuardadoDisponibles()` los detecta y guarda/comparte el PDF sin correo.
+- El WebView de la APK no descarga `<a download>` con blob, no expone `navigator.share` **y ignora `window.print()`**: en la APK los reportes se envían por correo (`POST /reporte/email`, adjunto vía Brevo) al email del token. En navegadores se descarga el PDF de `GET /reporte`. `generarPDFReporte()` agrega solo en los PDF de Gastos del mes dos líneas con la suma de `Ahorro` y `Fondo Emergencia` calculadas desde las filas del período (misma consulta, sin query extra). Si algún día se recompila con `@capacitor/filesystem` + `@capacitor/share`, `pluginsGuardadoDisponibles()` los detecta y guarda/comparte el PDF sin correo.
 
 ## Auth y validaciones
 - Tokens propios: `base64url(payload).base64url(HMAC-SHA256)`, 30 días. Contraseñas con `scrypt` + sal y `timingSafeEqual`. No hay dependencias `jsonwebtoken`/`bcrypt`.
@@ -44,6 +44,7 @@ Proyecto **Cuentas** (raíz del repo): API Node/Express + frontend vanilla servi
 - Recuperación: token de un solo uso guardado como SHA-256 en `recuperaciones`, expira en 30 min; rate limit en memoria (3 por 10 min). La respuesta es genérica a propósito para no revelar emails.
 - `validarFecha()` rechaza fechas futuras y del mes anterior, usa hora local (nunca UTC).
 - Montos: > 0 y hasta 2 decimales; inputs con `min="0.01"` y `step="0.01"`.
+- `Auto` es Gastos Semifijo y debe estar en `categoriasSemifijas` del servidor o el POST falla. Su sugerencia es `Combustible`; `Transporte` sugiere `Pasaje` (sin combustible, pedido del usuario).
 
 ## Deploy y Git
 - Push a `main` en `https://github.com/laresoft/Api.git` dispara el Blueprint de Render (`render.yaml`, Node 22, plan free). Verificar con la URL pública; no hay credenciales de Render en este entorno.

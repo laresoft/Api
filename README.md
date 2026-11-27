@@ -147,7 +147,7 @@ La PWA ya está preparada (`manifest.webmanifest`, `sw.js`, iconos). La forma re
 
 El workflow regenera el proyecto Android, aplica el parche de WebAuthn desde `scripts/parchear-android.js`, firma con un keystore guardado como secrets y deja el APK firmado. No hace falta JDK ni SDK en tu PC.
 
-> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v39`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
+> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v40`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
 
 ### Huella y WebAuthn en la APK
 
@@ -162,7 +162,7 @@ En **Perfil**, la lista de huellas no muestra texto: solo el botón **Quitar** p
 > El keystore de esta APK es nuevo: **desinstalá la APK anterior antes de instalar esta**. Android no permite actualizar una app firmada con otro certificado. Las huellas registradas con la firma anterior deben registrarse de nuevo.
 
 ### Reportes PDF en la APK
-El WebView de Android no permite descargas con `<a download>` ni `window.print()`. Por eso, dentro de la APK el botón dice **📧 Enviar PDF** y manda el archivo adjunto al correo de la cuenta (Brevo). En Safari/Chrome el botón descarga el PDF directamente. Los PDF de Gastos incluyen, además del detalle y el total del período, dos líneas con la suma de **Ahorro** y de **Fondo Emergencia** registradas en ese mismo día o mes.
+El WebView de Android no permite descargas con `<a download>` ni `window.print()`. Por eso, dentro de la APK el botón dice **📧 Enviar PDF** y manda el archivo adjunto al correo de la cuenta (Brevo). En Safari/Chrome el botón descarga el PDF directamente. Los PDF de Gastos del mes incluyen, además del detalle y el total, dos líneas con la suma de **Ahorro** y de **Fondo Emergencia** registradas en ese mes. Los PDF por día no las incluyen.
 
 Para guardar el PDF desde la propia app (sin correo), sí hace falta recompilar la APK agregando los plugins:
 
