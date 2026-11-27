@@ -50,15 +50,16 @@ main {
 
 .grilla-inicio {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 12px;
 }
 
 .tarjeta-inicio {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 18px;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
   background: #fff;
   border: 1px solid #ddd;
   border-left: 4px solid #3498db;
@@ -74,18 +75,34 @@ main {
 }
 
 .tarjeta-inicio .icono {
-  font-size: 1.8rem;
+  flex-shrink: 0;
+  font-size: 1.7rem;
   line-height: 1;
 }
 
+.tarjeta-inicio .texto-tarjeta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .tarjeta-inicio strong {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
 }
 
 .tarjeta-inicio small {
   color: #666;
   font-size: 0.85rem;
   line-height: 1.4;
+}
+
+.tarjeta-inicio .flecha {
+  flex-shrink: 0;
+  color: #3498db;
+  font-size: 1.1rem;
+  line-height: 1;
 }
 
 .btn-inicio {
@@ -862,6 +879,10 @@ button:disabled {
     border-color: #34424f;
     border-left-color: #58a6ff;
     color: #e6edf3;
+  }
+
+  .tarjeta-inicio .flecha {
+    color: #58a6ff;
   }
 
   .tarjeta-inicio:hover {

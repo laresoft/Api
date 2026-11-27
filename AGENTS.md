@@ -29,8 +29,8 @@ Proyecto **Cuentas** (raíz del repo): API Node/Express + frontend vanilla servi
 ## Frontend / PWA
 - `index.html`, `script.js` y `style.css` se sirven tal cual: se editan directo, sin transpilación. Textos y comentarios en español.
 - `#app` arranca en `#inicio`; `mostrarVista()` usa el mapa `VISTAS` para mostrar solo el grupo de secciones elegido. Al agregar una sección nueva, sumarla a `VISTAS` o no será visible desde el inicio.
-- `sw.js` hace caché cache-first de archivos estáticos. Al cambiar `index.html`/`script.js`/`style.css`/iconos, subir `NOMBRE_CACHE` (hoy `cuentas-v30`) o los usuarios ven UI vieja. Las rutas de API están excluidas a propósito (incluidas `/api/passkey/*`).
-- Ojo: la fuente real de la versión de caché es `sw.js` (`cuentas-v30`); README y MEMORY se actualizan al mismo tiempo.
+- `sw.js` hace caché cache-first de archivos estáticos. Al cambiar `index.html`/`script.js`/`style.css`/iconos, subir `NOMBRE_CACHE` (hoy `cuentas-v31`) o los usuarios ven UI vieja. Las rutas de API están excluidas a propósito (incluidas `/api/passkey/*`).
+- Ojo: la fuente real de la versión de caché es `sw.js` (`cuentas-v31`); README y MEMORY se actualizan al mismo tiempo.
 - `capacitor.config.json` apunta a la URL de Render: la APK de Android y la PWA del iPhone no requieren recompilar al cambiar la web. En iPhone se agrega con Safari → Compartir → Agregar a pantalla de inicio; las etiquetas `apple-touch-icon`/`apple-mobile-web-app-*` son intencionales.
 - El WebView de la APK no descarga `<a download>` con blob, no expone `navigator.share` **y ignora `window.print()`**: en la APK los reportes se envían por correo (`POST /reporte/email`, adjunto vía Brevo) al email del token. En navegadores se descarga el PDF de `GET /reporte`. Si algún día se recompila con `@capacitor/filesystem` + `@capacitor/share`, `pluginsGuardadoDisponibles()` los detecta y guarda/comparte el PDF sin correo.
 

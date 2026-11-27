@@ -16,9 +16,9 @@ Memoria del proyecto entre sesiones. Máximo ~50 líneas: resumí o eliminá lo 
 - Fecha editable en el formulario: permite registrar días pasados pero no días posteriores al actual.
 - Los cambios de esquema de la BD se aplican en `inicializarDB()` al arrancar: no hay acceso al dashboard de Supabase.
 - iPhone usa PWA (Agregar a pantalla de inicio) en vez de IPA: no requiere Mac ni cuenta de Apple Developer.
-- El service worker solo cachea archivos de interfaz; cada cambio visual exige subir `NOMBRE_CACHE` en `sw.js` (hoy `cuentas-v30`).
+- El service worker solo cachea archivos de interfaz; cada cambio visual exige subir `NOMBRE_CACHE` en `sw.js` (hoy `cuentas-v31`).
 - La interfaz sigue `prefers-color-scheme` del sistema con `@media` en `style.css`, `color-scheme` en `:root` y meta `theme-color` por modo; no hay toggle manual (pedido del usuario). El cuadro nativo de la huella no se puede estilizar.
-- Al entrar se muestra `#inicio` con la descripción de la app y tres tarjetas (Gastos, Ingresos, Balance) que abren solo su grupo de secciones; `← Volver al inicio` regresa. El modal de bienvenida sigue antes (pedido del usuario).
+- Al entrar se muestra `#inicio` con la descripción de la app y tres tarjetas (Gastos, Ingresos, Balance) que abren solo su grupo de secciones; `← Volver al inicio` regresa. El modal de bienvenida sigue antes (pedido del usuario). Las tarjetas llevan ícono a la izquierda, título y texto al centro y flecha pequeña a la derecha (pedido del usuario).
 - "Cambiar Contraseña" ya no es una sección de `<main>`: vive en el modal `#modal-perfil`, abierto desde el botón `Perfil` del header (entre el email y `Cerrar sesión`). Título `Perfil`, nombre del usuario en grande (`usuario.nombre`, fallback al email) y correo como texto no editable con etiqueta `Correo:`. Se cierra con botón, clic fuera o `Esc`.
 - `#barra-usuario` tiene fondo claro redondeado dentro del header azul: nombre + `Perfil` + `Cerrar sesión` comparten esa banda. El header sigue siendo `sticky`.
 - Al cambiar la contraseña desde Perfil se actualiza la copia guardada en el dispositivo si "Recordar contraseña" está activa; si está desmarcada, se borra. `POST /cambiar-contrasena` no cambió.
