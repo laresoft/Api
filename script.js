@@ -243,6 +243,7 @@ const seccionHuella = document.getElementById('seccion-huella');
 const btnRegistrarHuella = document.getElementById('btn-registrar-huella');
 const listaHuellas = document.getElementById('lista-huellas');
 const mensajeHuella = document.getElementById('mensaje-huella');
+let hayHuellasRegistradas = false;
 
 // Pantallas de recuperación de contraseña
 const olvide = document.getElementById('olvide');
@@ -392,7 +393,9 @@ async function cargarHuellas() {
 
 function renderizarHuellas(credenciales) {
   listaHuellas.replaceChildren();
-  btnRegistrarHuella.textContent = credenciales.length ? 'Registrado' : '👆 Registrar huella';
+  hayHuellasRegistradas = credenciales.length > 0;
+  btnRegistrarHuella.textContent = hayHuellasRegistradas ? 'Registrado' : '👆 Registrar huella';
+  btnRegistrarHuella.disabled = hayHuellasRegistradas;
 
   if (!credenciales.length) {
     const aviso = document.createElement('p');
@@ -708,7 +711,7 @@ btnRegistrarHuella.addEventListener('click', async () => {
       mostrarMensajeHuella(error.message || 'No se pudo registrar la huella');
     }
   } finally {
-    btnRegistrarHuella.disabled = false;
+    btnRegistrarHuella.disabled = hayHuellasRegistradas;
   }
 });
 

@@ -129,7 +129,7 @@ La PWA ya está preparada (`manifest.webmanifest`, `sw.js`, iconos). La forma re
 
 El workflow regenera el proyecto Android, aplica el parche de WebAuthn desde `scripts/parchear-android.js`, firma con un keystore guardado como secrets y deja el APK firmado. No hace falta JDK ni SDK en tu PC.
 
-> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v24`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
+> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v25`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
 
 ### Huella y WebAuthn en la APK
 
@@ -139,7 +139,7 @@ La app también declara la asociación inversa: el parche agrega `asset_statemen
 
 El parche nativo activa WebAuthn, verifica `getWebAuthenticationSupport()` y recarga la WebView para que `PublicKeyCredential` exista antes de que corra el `script.js`. El dispositivo necesita **Android System WebView 131 o superior** (actualizable desde Play Store), Google Play Services actualizado y una pantalla de bloqueo configurada. Si el WebView es viejo, en **Perfil** aparece *“Huella no disponible en este dispositivo…”* en vez de los botones; abriendo la web en Chrome con `?diag=1` se ven los motivos exactos. La contraseña sigue funcionando igual.
 
-En **Perfil**, la lista de huellas no muestra texto: solo el botón **Quitar** para cada una. Cuando hay al menos una huella registrada, el botón **👆 Registrar huella** pasa a decir **Registrado**; si se quitan todas, vuelve a **👆 Registrar huella**. El servidor sigue guardando internamente el dispositivo, pero la interfaz no lo exhibe.
+En **Perfil**, la lista de huellas no muestra texto: solo el botón **Quitar** para cada una. Cuando hay al menos una huella registrada, el botón **👆 Registrar huella** pasa a decir **Registrado** y queda desactivado; si se quitan todas, vuelve a **👆 Registrar huella** y se activa. El servidor sigue guardando internamente el dispositivo, pero la interfaz no lo exhibe.
 
 > El keystore de esta APK es nuevo: **desinstalá la APK anterior antes de instalar esta**. Android no permite actualizar una app firmada con otro certificado. Las huellas registradas con la firma anterior deben registrarse de nuevo.
 
