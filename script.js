@@ -739,7 +739,7 @@ async function ingresarConHuella(automatico = false) {
     guardarToken(datos.token);
     loginPassword.value = '';
     actualizarBotonHuella();
-    await entrarApp(datos.usuario, { bienvenida: !automatico, esRegistro: false });
+    await entrarApp(datos.usuario, { bienvenida: true, esRegistro: false });
     return true;
   } catch (error) {
     const intentos = sumarIntentoHuella();

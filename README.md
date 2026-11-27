@@ -102,7 +102,7 @@ En Android (APK), iPhone (PWA agregada desde Safari) y navegadores con WebAuthn 
 
 En Android la interfaz habla solo de **Huella**: el cuadro del sistema puede pedir huella o PIN según el dispositivo.
 
-Cuando este dispositivo ya tiene una huella registrada, al **abrir la app** se pide la huella automáticamente, sin tocar ningún botón. Si no se reconoce en **3 intentos**, el botón de huella desaparece y la app te lleva a **usuario y contraseña**. El contador se reinicia cuando entrás con tu contraseña o después de 15 minutos. Hasta entonces, el ingreso con huella queda desactivado.
+Cuando este dispositivo ya tiene una huella registrada, al **abrir la app** se pide la huella automáticamente, sin tocar ningún botón. Si no se reconoce en **3 intentos**, el botón de huella desaparece y la app te lleva a **usuario y contraseña**. El contador se reinicia cuando entrás con tu contraseña o después de 15 minutos. Hasta entonces, el ingreso con huella queda desactivado. Al entrar con huella, automática o manual, se muestra el modal de bienvenida, igual que con contraseña.
 
 El servidor guarda solo una **clave pública**: la huella nunca sale del teléfono. Al registrar la primera huella se borra la contraseña guardada en ese dispositivo y se desmarca **Recordar contraseña**; la contraseña escrita a mano sigue funcionando como respaldo, al igual que la recuperación por email.
 
@@ -133,7 +133,7 @@ La PWA ya está preparada (`manifest.webmanifest`, `sw.js`, iconos). La forma re
 
 El workflow regenera el proyecto Android, aplica el parche de WebAuthn desde `scripts/parchear-android.js`, firma con un keystore guardado como secrets y deja el APK firmado. No hace falta JDK ni SDK en tu PC.
 
-> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v27`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
+> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v28`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
 
 ### Huella y WebAuthn en la APK
 
