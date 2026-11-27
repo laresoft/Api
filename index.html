@@ -192,7 +192,13 @@
 
     <!-- Sección: Gastos -->
     <section id="lista-gastos">
-      <h2>Gastos</h2>
+      <h2 class="titulo-con-icono">
+        <svg class="icono-seccion icono-gasto" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 7v10m0 0-4-4m4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Gastos</span>
+      </h2>
 
       <div class="segmentado">
         <label>
@@ -241,7 +247,13 @@
 
     <!-- Sección: Ingresos -->
     <section id="lista-ingresos">
-      <h2>Ingresos</h2>
+      <h2 class="titulo-con-icono">
+        <svg class="icono-seccion icono-ingreso" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 17V7m0 0-4 4m4-4 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Ingresos</span>
+      </h2>
 
       <div class="segmentado">
         <label>
@@ -270,7 +282,14 @@
 
     <!-- Sección: Balance -->
     <section id="balance">
-      <h2>Balance del Mes</h2>
+      <h2 class="titulo-con-icono">
+        <svg class="icono-seccion icono-balance" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3v17M7 21h10M5 7h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M5 7 L2 13 H8 Z" fill="#e74c3c"/>
+          <path d="M19 7 L16 13 H22 Z" fill="#27ae60"/>
+        </svg>
+        <span>Balance Financiero</span>
+      </h2>
       <div class="campo">
         <label for="mes-balance">Elige un mes:</label>
         <input type="month" id="mes-balance" name="mes">

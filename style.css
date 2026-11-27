@@ -124,6 +124,22 @@ section h2 {
   font-size: 1.2rem;
 }
 
+section h2.titulo-con-icono {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icono-seccion {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+}
+
+.icono-gasto { color: #e74c3c; }
+.icono-ingreso { color: #27ae60; }
+.icono-balance { color: #6b7a88; }
+
 .campo {
   margin-bottom: 15px;
 }
@@ -672,6 +688,10 @@ button:disabled {
   section h2,
   #seccion-huella {
     border-color: #34424f;
+  }
+
+  .icono-balance {
+    color: #9aa7b4;
   }
 
   .campo label,
