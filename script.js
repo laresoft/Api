@@ -14,6 +14,10 @@ const CLAVE_TOKEN = 'cuentas-token';
 const CLAVE_EMAIL = 'cuentas-email';
 const CLAVE_PASSWORD = 'cuentas-password';
 const CLAVE_RECORDAR = 'cuentas-recordar'; // '1' por defecto, '0' si el usuario desmarca la casilla
+const CLAVE_HUELLA_REGISTRADA = 'cuentas-huella-registrada';
+const CLAVE_INTENTOS_HUELLA = 'cuentas-huella-intentos';
+const MAX_INTENTOS_HUELLA = 3;
+const TIEMPO_INTENTOS_HUELLA = 15 * 60 * 1000;
 
 // --- Sesión y llamadas a la API ---
 
@@ -208,6 +212,50 @@ function mostrarMensajeHuella(texto, esOk = false) {
   mensajeHuella.classList.toggle('ok', esOk);
 }
 
+// La passkey puede existir en la cuenta pero no en este dispositivo. Este flag
+// evita pedir huella al abrir en equipos donde nunca se registró.
+function huellaRegistradaEnEsteDispositivo() {
+  return localStorage.getItem(CLAVE_HUELLA_REGISTRADA) === '1';
+}
+
+function marcarHuellaRegistrada(registrada) {
+  if (registrada) localStorage.setItem(CLAVE_HUELLA_REGISTRADA, '1');
+  else localStorage.removeItem(CLAVE_HUELLA_REGISTRADA);
+}
+
+function intentosHuella() {
+  let dato;
+  try {
+    dato = JSON.parse(localStorage.getItem(CLAVE_INTENTOS_HUELLA) || '{}');
+  } catch (error) {
+    dato = {};
+  }
+  if (!dato.fecha || Date.now() - Number(dato.fecha) > TIEMPO_INTENTOS_HUELLA) {
+    localStorage.removeItem(CLAVE_INTENTOS_HUELLA);
+    return 0;
+  }
+  return Math.max(0, Number(dato.intentos) || 0);
+}
+
+function sumarIntentoHuella() {
+  const intentos = intentosHuella() + 1;
+  localStorage.setItem(CLAVE_INTENTOS_HUELLA, JSON.stringify({ intentos, fecha: Date.now() }));
+  return intentos;
+}
+
+function reiniciarIntentosHuella() {
+  localStorage.removeItem(CLAVE_INTENTOS_HUELLA);
+}
+
+function huellaBloqueada() {
+  return intentosHuella() >= MAX_INTENTOS_HUELLA;
+}
+
+function actualizarBotonHuella() {
+  const disponible = passkeysDisponibles() && !huellaBloqueada();
+  btnLoginHuella.classList.toggle('oculto', !disponible);
+}
+
 // --- Pantalla de acceso ---
 
 const auth = document.getElementById('auth');
@@ -321,6 +369,7 @@ function mostrarAuth(mensaje = '') {
   restablecer.classList.add('oculto');
   auth.classList.remove('oculto');
   authMensaje.textContent = mensaje;
+  actualizarBotonHuella();
 }
 
 function mostrarOlvide() {
@@ -350,6 +399,9 @@ function mostrarApp(usuario) {
   usuarioNombre = String(usuario.nombre || '').trim();
   usuarioCorreo = String(usuario.email || '').trim();
   usuarioEmail.textContent = usuarioNombre || usuarioCorreo || '';
+  // Sincroniza el flag local: así un dispositivo que ya tenía huella registrada
+  // también la pide al abrir, aunque haya entrado con contraseña.
+  cargarHuellas();
 }
 
 function abrirPerfil() {
@@ -394,6 +446,7 @@ async function cargarHuellas() {
 function renderizarHuellas(credenciales) {
   listaHuellas.replaceChildren();
   hayHuellasRegistradas = credenciales.length > 0;
+  marcarHuellaRegistrada(hayHuellasRegistradas);
   btnRegistrarHuella.textContent = hayHuellasRegistradas ? 'Registrado' : '👆 Registrar huella';
   btnRegistrarHuella.disabled = hayHuellasRegistradas;
 
@@ -592,6 +645,7 @@ formLogin.addEventListener('submit', async (e) => {
     });
     guardarToken(datos.token);
     guardarCredenciales(email, password);
+    reiniciarIntentosHuella();
     loginPassword.value = '';
     await entrarApp(datos.usuario, { bienvenida: true, esRegistro: false });
   } catch (error) {
@@ -646,12 +700,29 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !modalPerfil.classList.contains('oculto')) cerrarPerfil();
 });
 
-// Ingresar con huella desde el login (iPhone PWA y navegadores seguros).
-btnLoginHuella.addEventListener('click', async () => {
+// Ingresar con huella: al abrir la app se llama con automatico=true; el botón
+// del login permite reintentar después de un intento fallido.
+async function ingresarConHuella(automatico = false) {
+  if (huellaBloqueada()) {
+    mostrarAuth('Ingresá con tu usuario y contraseña.');
+    return false;
+  }
+
   btnLoginHuella.disabled = true;
-  authMensaje.textContent = 'Confirmá con tu huella…';
+  authMensaje.textContent = automatico
+    ? 'Confirmá con tu huella para abrir la app…'
+    : 'Confirmá con tu huella…';
+
+  let opciones;
   try {
-    const opciones = await apiJSON('/api/passkey/autenticar/opciones', { method: 'POST' });
+    opciones = await apiJSON('/api/passkey/autenticar/opciones', { method: 'POST' });
+  } catch (error) {
+    authMensaje.textContent = error.message;
+    btnLoginHuella.disabled = false;
+    return false;
+  }
+
+  try {
     const credencial = await navigator.credentials.get({
       publicKey: prepararOpcionesAutenticacion(opciones)
     });
@@ -664,21 +735,36 @@ btnLoginHuella.addEventListener('click', async () => {
         response: credencialAutenticacionJSON(credencial)
       })
     });
+    reiniciarIntentosHuella();
     guardarToken(datos.token);
     loginPassword.value = '';
-    await entrarApp(datos.usuario, { bienvenida: true, esRegistro: false });
+    actualizarBotonHuella();
+    await entrarApp(datos.usuario, { bienvenida: !automatico, esRegistro: false });
+    return true;
   } catch (error) {
-    if (error.name === 'NotAllowedError') {
-      authMensaje.textContent = 'Cancelaste o no se permitió usar la huella. Podés entrar con tu contraseña.';
-    } else if (error.name === 'NotReadableError') {
-      authMensaje.textContent = 'El gestor de credenciales no respondió. Actualizá Google Play Services, verificá que tengas pantalla de bloqueo y probá de nuevo.';
-    } else {
-      authMensaje.textContent = error.message || 'No se pudo ingresar con la huella';
+    const intentos = sumarIntentoHuella();
+    if (intentos >= MAX_INTENTOS_HUELLA) {
+      cerrarSesion('No se reconoció la huella en 3 intentos. Ingresá con tu usuario y contraseña.');
+      return false;
     }
+
+    let detalle;
+    if (error.name === 'NotAllowedError') {
+      detalle = 'No se reconoció la huella o cancelaste.';
+    } else if (error.name === 'NotReadableError') {
+      detalle = 'El gestor de credenciales no respondió.';
+    } else {
+      detalle = error.message || 'No se pudo ingresar con la huella';
+    }
+    const restantes = MAX_INTENTOS_HUELLA - intentos;
+    mostrarAuth(`${detalle} Te ${restantes === 1 ? 'queda 1 intento' : `quedan ${restantes} intentos`} antes de usar tu contraseña.`);
+    return false;
   } finally {
     btnLoginHuella.disabled = false;
   }
-});
+}
+
+btnLoginHuella.addEventListener('click', () => { ingresarConHuella(false); });
 
 // Registrar una huella desde Perfil.
 btnRegistrarHuella.addEventListener('click', async () => {
@@ -756,7 +842,11 @@ async function verificarSesion() {
   }
 
   if (!obtenerToken()) {
-    mostrarAuth();
+    const debePedirHuella = huellaRegistradaEnEsteDispositivo()
+      && passkeysDisponibles()
+      && !huellaBloqueada();
+    mostrarAuth(huellaBloqueada() ? 'Ingresá con tu usuario y contraseña.' : '');
+    if (debePedirHuella) await ingresarConHuella(true);
     return;
   }
 
@@ -1271,11 +1361,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   seccionHuella.classList.remove('oculto');
-  if (passkeysDisponibles()) {
-    btnLoginHuella.classList.remove('oculto');
-  } else {
-    btnLoginHuella.classList.add('oculto');
-  }
+  actualizarBotonHuella();
   mostrarEstadoHuella();
 
   restaurarCredenciales();
