@@ -406,10 +406,7 @@ function renderizarHuellas(credenciales) {
     fila.className = 'huella-item';
 
     const texto = document.createElement('span');
-    const fecha = credencial.creado_en
-      ? new Date(credencial.creado_en).toLocaleDateString('es-UY')
-      : '';
-    texto.textContent = `${credencial.dispositivo || 'Este dispositivo'}${fecha ? ` · ${fecha}` : ''}`;
+    texto.textContent = 'Huella registrada';
 
     const boton = document.createElement('button');
     boton.type = 'button';
