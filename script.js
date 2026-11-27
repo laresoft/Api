@@ -392,6 +392,7 @@ async function cargarHuellas() {
 
 function renderizarHuellas(credenciales) {
   listaHuellas.replaceChildren();
+  btnRegistrarHuella.textContent = credenciales.length ? 'Registrado' : '👆 Registrar huella';
 
   if (!credenciales.length) {
     const aviso = document.createElement('p');
@@ -405,16 +406,13 @@ function renderizarHuellas(credenciales) {
     const fila = document.createElement('div');
     fila.className = 'huella-item';
 
-    const texto = document.createElement('span');
-    texto.textContent = 'Huella registrada';
-
     const boton = document.createElement('button');
     boton.type = 'button';
     boton.className = 'btn-quitar-huella';
     boton.dataset.quitarHuella = String(credencial.id);
     boton.textContent = 'Quitar';
 
-    fila.append(texto, boton);
+    fila.appendChild(boton);
     listaHuellas.appendChild(fila);
   });
 }
