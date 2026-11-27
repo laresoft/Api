@@ -35,6 +35,69 @@ main {
   margin: 0 auto;
 }
 
+/* Vista de inicio: descripción y accesos a cada sección */
+#inicio {
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.descripcion-inicio {
+  margin: 0 0 20px;
+  color: #555;
+  line-height: 1.7;
+}
+
+.grilla-inicio {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.tarjeta-inicio {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-left: 4px solid #3498db;
+  border-radius: 8px;
+  color: #2c3e50;
+  text-decoration: none;
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+.tarjeta-inicio:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.tarjeta-inicio .icono {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.tarjeta-inicio strong {
+  font-size: 1.1rem;
+}
+
+.tarjeta-inicio small {
+  color: #666;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.btn-inicio {
+  width: auto;
+  margin: 0 0 15px;
+  padding: 8px 12px;
+  background: transparent;
+  color: #3498db;
+  border: 2px solid #3498db;
+  font-size: 0.9rem;
+}
+
 section {
   background: white;
   padding: 20px;
@@ -787,5 +850,30 @@ button:disabled {
   .huella-estado {
     background: #3a2f12;
     color: #f0d582 !important;
+  }
+
+  .descripcion-inicio,
+  .tarjeta-inicio small {
+    color: #c2cdd8;
+  }
+
+  .tarjeta-inicio {
+    background: #1c242d;
+    border-color: #34424f;
+    border-left-color: #58a6ff;
+    color: #e6edf3;
+  }
+
+  .tarjeta-inicio:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  }
+
+  .btn-inicio {
+    color: #58a6ff;
+    border-color: #58a6ff;
+  }
+
+  .btn-inicio:hover {
+    background: #17324d;
   }
 }

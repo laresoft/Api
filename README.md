@@ -92,6 +92,10 @@ Cada `git push` actualiza la app automáticamente. Si cambiás `JWT_SECRET`, las
 
 La sesión queda guardada en el dispositivo 30 días. Si otra persona usa el mismo celular, debe cerrar sesión e iniciar con su cuenta.
 
+### Vista de inicio
+
+Después de entrar (y de cerrar el modal de bienvenida) aparece una vista de inicio con la descripción de la aplicación y tres accesos: **Gastos**, **Ingresos** y **Balance**. Cada acceso abre solo esa parte; el botón **← Volver al inicio** vuelve al menú. El encabezado sigue fijo arriba.
+
 ### Modo claro y oscuro
 
 La app sigue automáticamente el modo del celular: si activás el modo oscuro desde Ajustes, la interfaz cambia sola y vuelve al claro al desactivarlo. No hay botón: usa la preferencia del sistema (`prefers-color-scheme`), y también cambia el color de la barra del navegador o la PWA. El cuadro del sistema de la huella lo pintan Android/iOS, no la app.
@@ -137,7 +141,7 @@ La PWA ya está preparada (`manifest.webmanifest`, `sw.js`, iconos). La forma re
 
 El workflow regenera el proyecto Android, aplica el parche de WebAuthn desde `scripts/parchear-android.js`, firma con un keystore guardado como secrets y deja el APK firmado. No hace falta JDK ni SDK en tu PC.
 
-> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v29`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
+> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v30`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
 
 ### Huella y WebAuthn en la APK
 

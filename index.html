@@ -83,6 +83,30 @@
   </div>
 
   <main id="app" class="oculto">
+    <!-- Vista inicial: descripción y accesos a cada sección -->
+    <section id="inicio">
+      <p id="descripcion-inicio" class="descripcion-inicio">La aplicación «Cuentas» permite gestionar las finanzas personales mediante el registro de ingresos y gastos, el seguimiento de transacciones y la generación de informes para controlar el balance financiero.</p>
+      <nav class="grilla-inicio" aria-label="Secciones de Cuentas">
+        <a href="#gastos" class="tarjeta-inicio" data-vista="gastos">
+          <span class="icono" aria-hidden="true">💸</span>
+          <strong>Gastos</strong>
+          <small>Registrá gastos, consultalos y generá informes.</small>
+        </a>
+        <a href="#ingresos" class="tarjeta-inicio" data-vista="ingresos">
+          <span class="icono" aria-hidden="true">💰</span>
+          <strong>Ingresos</strong>
+          <small>Registrá ingresos, consultalos y generá informes.</small>
+        </a>
+        <a href="#balance" class="tarjeta-inicio" data-vista="balance">
+          <span class="icono" aria-hidden="true">📊</span>
+          <strong>Balance</strong>
+          <small>Vé el balance del mes y su detalle.</small>
+        </a>
+      </nav>
+    </section>
+
+    <button type="button" id="btn-volver-inicio" class="btn-inicio oculto">← Volver al inicio</button>
+
     <!-- Sección: Registrar Gasto -->
     <section id="registrar-gasto">
       <h2>Registrar Gasto</h2>

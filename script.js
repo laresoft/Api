@@ -291,7 +291,16 @@ const seccionHuella = document.getElementById('seccion-huella');
 const btnRegistrarHuella = document.getElementById('btn-registrar-huella');
 const listaHuellas = document.getElementById('lista-huellas');
 const mensajeHuella = document.getElementById('mensaje-huella');
+const vistaInicio = document.getElementById('inicio');
+const btnVolverInicio = document.getElementById('btn-volver-inicio');
 let hayHuellasRegistradas = false;
+
+// Cada acceso del inicio abre un grupo de secciones; el resto queda oculto.
+const VISTAS = {
+  gastos: ['registrar-gasto', 'lista-gastos'],
+  ingresos: ['registrar-ingreso', 'lista-ingresos'],
+  balance: ['balance']
+};
 
 // Pantallas de recuperación de contraseña
 const olvide = document.getElementById('olvide');
@@ -402,7 +411,31 @@ function mostrarApp(usuario) {
   // Sincroniza el flag local: así un dispositivo que ya tenía huella registrada
   // también la pide al abrir, aunque haya entrado con contraseña.
   cargarHuellas();
+  mostrarVista('inicio');
 }
+
+// Vistas: el inicio muestra la descripción y los accesos; cada acceso deja
+// visible solo su grupo de secciones y ofrece volver al inicio.
+function mostrarVista(nombre = 'inicio') {
+  const visibles = VISTAS[nombre] || [];
+  vistaInicio.classList.toggle('oculto', nombre !== 'inicio');
+  btnVolverInicio.classList.toggle('oculto', nombre === 'inicio');
+  Object.keys(VISTAS).forEach(clave => {
+    VISTAS[clave].forEach(id => {
+      document.getElementById(id).classList.toggle('oculto', visibles.indexOf(id) === -1);
+    });
+  });
+  window.scrollTo(0, 0);
+}
+
+document.querySelectorAll('.tarjeta-inicio').forEach(tarjeta => {
+  tarjeta.addEventListener('click', (e) => {
+    e.preventDefault();
+    mostrarVista(tarjeta.dataset.vista);
+  });
+});
+
+btnVolverInicio.addEventListener('click', () => mostrarVista('inicio'));
 
 function abrirPerfil() {
   perfilNombre.textContent = usuarioNombre || usuarioCorreo || 'Usuario';
