@@ -1,4 +1,8 @@
 /* Estilos principales para móvil - diseño limpio y moderno */
+:root {
+  color-scheme: light;
+}
+
 body {
   font-family: system-ui, -apple-system, sans-serif;
   margin: 0;
@@ -554,5 +558,234 @@ button:disabled {
 @media (min-width: 600px) {
   body {
     padding: 40px;
+  }
+}
+
+/* Modo oscuro: sigue la preferencia del celular o navegador en tiempo real.
+   El cuadro nativo de la huella lo decide Android/iOS, no esta hoja de estilos. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    background: #11161c;
+    color: #e6edf3;
+  }
+
+  header {
+    background: #16202a;
+    color: #e6edf3;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  }
+
+  section,
+  .modal-contenido,
+  .balance-tarjeta,
+  .item-gasto,
+  .item-ingreso {
+    background: #1c242d;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+  }
+
+  section h2,
+  .modal-contenido h2,
+  .modal-contenido .perfil-nombre,
+  #seccion-huella h3,
+  optgroup,
+  .btn-ver-contra {
+    color: #e6edf3;
+  }
+
+  section h2,
+  #seccion-huella {
+    border-color: #34424f;
+  }
+
+  .campo label,
+  .recordar,
+  .texto-ayuda,
+  .modal-contenido p,
+  .modal-contenido .perfil-email {
+    color: #c2cdd8;
+  }
+
+  .campo input,
+  .campo select,
+  .campo textarea {
+    background: #232d38;
+    color: #e6edf3;
+    border-color: #34424f;
+  }
+
+  .campo input:focus,
+  .campo select:focus {
+    border-color: #58a6ff;
+    box-shadow: 0 0 4px rgba(88, 166, 255, 0.4);
+  }
+
+  input[readonly] {
+    background: #283441;
+    color: #aab6c2;
+  }
+
+  .recordar input[type="checkbox"] {
+    accent-color: #58a6ff;
+  }
+
+  button {
+    background: #2ea043;
+    color: #fff;
+  }
+
+  button:hover {
+    background: #3fb950;
+  }
+
+  button:disabled {
+    background: #5a6773;
+  }
+
+  .segmentado {
+    border-color: #58a6ff;
+  }
+
+  .segmentado span,
+  .segmentado .btn-pdf {
+    background: #1c242d;
+    color: #58a6ff;
+  }
+
+  .segmentado input:checked + span,
+  .segmentado .btn-pdf:hover:not(:disabled) {
+    background: #58a6ff;
+    color: #fff;
+  }
+
+  .segmentado .btn-pdf:disabled {
+    background: #283441;
+    color: #8b98a5;
+  }
+
+  .segmentado .btn-pdf {
+    border-left-color: #58a6ff;
+  }
+
+  .resumen-mes,
+  .balance-tarjeta.total {
+    background: #12312c;
+    color: #7ee2b8;
+  }
+
+  .resumen-mes {
+    border-left-color: #2ea043;
+  }
+
+  .balance-tarjeta.ingreso strong,
+  .auth-mensaje.ok {
+    color: #56d364;
+  }
+
+  .balance-tarjeta.gasto strong,
+  .auth-mensaje {
+    color: #ff7b72;
+  }
+
+  .balance-tarjeta.total.positivo strong {
+    color: #7ee2b8;
+  }
+
+  .balance-tarjeta.total.negativo {
+    background: #3a1d1d;
+  }
+
+  .balance-tarjeta.total.negativo strong {
+    color: #ff7b72;
+  }
+
+  .balance-tarjeta .etiqueta,
+  .balance-tarjeta small {
+    color: #aab6c2;
+  }
+
+  #resultado-gastos,
+  #resultado-ingresos,
+  #resultado-balance,
+  .btn-ver-contra,
+  .huella-item {
+    background: #232d38;
+  }
+
+  .btn-ver-contra {
+    border-color: #34424f;
+  }
+
+  .btn-ver-contra:hover {
+    background: #313e4b;
+  }
+
+  .item-ingreso,
+  .resumen-mes {
+    border-left-color: #2ea043;
+  }
+
+  .btn-eliminar,
+  .btn-cerrar {
+    background: #e5534b;
+  }
+
+  .btn-eliminar:hover,
+  .btn-cerrar:hover {
+    background: #f85149;
+  }
+
+  .btn-perfil {
+    background: #58a6ff;
+  }
+
+  .btn-perfil:hover {
+    background: #79b8ff;
+  }
+
+  .btn-quitar-huella {
+    color: #ff7b72;
+  }
+
+  .btn-secundario {
+    color: #58a6ff;
+    border-color: #58a6ff;
+  }
+
+  .btn-secundario:hover {
+    background: #17324d;
+    color: #9acbff;
+  }
+
+  #barra-usuario {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  #modal-bienvenida,
+  #modal-perfil {
+    background: rgba(0, 0, 0, 0.75);
+  }
+
+  .modal-contenido {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  }
+
+  .modal-contenido h2 strong {
+    color: #9acbff;
+  }
+
+  .huella-explicacion,
+  .huella-vacia,
+  .huella-estado {
+    color: #aab6c2 !important;
+  }
+
+  .huella-estado {
+    background: #3a2f12;
+    color: #f0d582 !important;
   }
 }

@@ -92,6 +92,10 @@ Cada `git push` actualiza la app automáticamente. Si cambiás `JWT_SECRET`, las
 
 La sesión queda guardada en el dispositivo 30 días. Si otra persona usa el mismo celular, debe cerrar sesión e iniciar con su cuenta.
 
+### Modo claro y oscuro
+
+La app sigue automáticamente el modo del celular: si activás el modo oscuro desde Ajustes, la interfaz cambia sola y vuelve al claro al desactivarlo. No hay botón: usa la preferencia del sistema (`prefers-color-scheme`), y también cambia el color de la barra del navegador o la PWA. El cuadro del sistema de la huella lo pintan Android/iOS, no la app.
+
 ### Ingresar con huella
 
 En Android (APK), iPhone (PWA agregada desde Safari) y navegadores con WebAuthn aparece **👆 Ingresar con huella** en el login. Para activarlo:
@@ -133,7 +137,7 @@ La PWA ya está preparada (`manifest.webmanifest`, `sw.js`, iconos). La forma re
 
 El workflow regenera el proyecto Android, aplica el parche de WebAuthn desde `scripts/parchear-android.js`, firma con un keystore guardado como secrets y deja el APK firmado. No hace falta JDK ni SDK en tu PC.
 
-> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v28`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
+> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v29`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
 
 ### Huella y WebAuthn en la APK
 
