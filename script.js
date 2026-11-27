@@ -260,6 +260,7 @@ function actualizarBotonHuella() {
 
 const auth = document.getElementById('auth');
 const app = document.getElementById('app');
+const tituloHeader = document.getElementById('titulo-header');
 const barraFooter = document.getElementById('barra-footer');
 const btnFooterInicio = document.getElementById('btn-footer-inicio');
 const btnFooterServicios = document.getElementById('btn-footer-servicios');
@@ -302,6 +303,19 @@ const VISTAS = {
   ingresos: ['registrar-ingreso', 'lista-ingresos'],
   balance: ['balance']
 };
+
+// El encabezado fijo muestra el nombre de la vista activa; al salir vuelve al título original.
+const TITULOS_HEADER = {
+  inicio: '💰 Control de Gastos e Ingresos',
+  servicios: 'Servicios',
+  gastos: 'Gastos',
+  ingresos: 'Ingresos',
+  balance: 'Balance Financiero'
+};
+
+function actualizarTituloHeader(nombre = 'inicio') {
+  tituloHeader.textContent = TITULOS_HEADER[nombre] || TITULOS_HEADER.inicio;
+}
 
 // Pantallas de recuperación de contraseña
 const olvide = document.getElementById('olvide');
@@ -379,6 +393,7 @@ function mostrarAuth(mensaje = '') {
   restablecer.classList.add('oculto');
   auth.classList.remove('oculto');
   authMensaje.textContent = mensaje;
+  actualizarTituloHeader();
   actualizarBotonHuella();
 }
 
@@ -391,6 +406,7 @@ function mostrarOlvide() {
   mensajeRecuperar.textContent = '';
   mensajeRecuperar.classList.remove('ok');
   recuperarEmail.value = loginEmail.value.trim();
+  actualizarTituloHeader();
   recuperarEmail.focus();
 }
 
@@ -400,6 +416,7 @@ function mostrarRestablecer() {
   auth.classList.add('oculto');
   olvide.classList.add('oculto');
   restablecer.classList.remove('oculto');
+  actualizarTituloHeader();
 }
 
 function mostrarApp(usuario) {
@@ -425,6 +442,7 @@ function mostrarVista(nombre = 'inicio') {
       document.getElementById(id).classList.toggle('oculto', visibles.indexOf(id) === -1);
     });
   });
+  actualizarTituloHeader(nombre);
   window.scrollTo(0, 0);
 }
 

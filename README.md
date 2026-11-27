@@ -94,7 +94,7 @@ La sesión queda guardada en el dispositivo 30 días. Si otra persona usa el mis
 
 ### Vista de inicio y navegación
 
-Después de entrar (y de cerrar el modal de bienvenida) aparece una vista de inicio con la descripción de la aplicación (texto justificado) y tres accesos: **Gastos**, **Ingresos** y **Balance**. Cada acceso abre solo esa parte. El encabezado muestra únicamente el título, sin nombre de usuario.
+Después de entrar (y de cerrar el modal de bienvenida) aparece una vista de inicio con la descripción de la aplicación (texto justificado) y tres accesos: **Gastos**, **Ingresos** y **Balance**. Cada acceso abre solo esa parte. El encabezado fijo muestra solo el título, sin nombre de usuario, y cambia según la vista: `Gastos`, `Ingresos`, `Balance Financiero` o `Servicios`; al volver al inicio (o al login) recupera `💰 Control de Gastos e Ingresos`.
 
 Abajo queda una barra fija con el mismo estilo del encabezado y cuatro botones: **Inicio**, **Servicios**, **Ajustes** y **Cerrar**. Está en todas las vistas mientras haya sesión. **Servicios** muestra los accesos a Gastos, Ingresos y Balance; **Ajustes** abre el modal de contraseña y huella (antes se llamaba Perfil). Los encabezados de lista llevan iconos SVG: círculo rojo con flecha hacia abajo en **Gastos**, verde con flecha hacia arriba en **Ingresos** y una balanza con plato rojo y verde en **Balance Financiero**.
 
@@ -143,7 +143,7 @@ La PWA ya está preparada (`manifest.webmanifest`, `sw.js`, iconos). La forma re
 
 El workflow regenera el proyecto Android, aplica el parche de WebAuthn desde `scripts/parchear-android.js`, firma con un keystore guardado como secrets y deja el APK firmado. No hace falta JDK ni SDK en tu PC.
 
-> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v36`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
+> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v37`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
 
 ### Huella y WebAuthn en la APK
 
