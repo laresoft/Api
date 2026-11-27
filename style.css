@@ -413,6 +413,10 @@ button:disabled {
 .modal-contenido {
   width: 100%;
   max-width: 360px;
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background: #fff;
   border-radius: 12px;
   padding: 24px 20px;
@@ -450,13 +454,19 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: 12px;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
   z-index: 1000;
 }
 
 .modal-perfil-contenido {
   max-width: 420px;
   text-align: left;
+}
+
+#btn-registrar-huella:disabled {
+  color: #fff;
+  font-weight: 700;
 }
 
 .modal-perfil-contenido h2 {

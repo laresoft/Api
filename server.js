@@ -508,7 +508,7 @@ app.get('/api/heartbeat', async (req, res) => {
   }
 });
 
-// --- Ingreso con huella / Face ID (passkeys WebAuthn) ---
+// --- Ingreso con huella (passkeys WebAuthn) ---
 
 async function guardarChallenge(challenge, tipo, usuarioId = null) {
   await pool.query('DELETE FROM passkey_challenges WHERE expira_en < NOW()');

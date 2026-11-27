@@ -6,7 +6,7 @@ App para registrar gastos e ingresos. Funciona en el celular y en cualquier disp
 
 **Costo: $0** — Render Free + Supabase Free.
 
-**Multiusuario:** cada persona se registra con email y contraseña y ve **solo sus propios datos**. Todos comparten el mismo deploy y la misma APK; la separación se hace con `usuario_id` en cada tabla. Opcionalmente se puede ingresar con huella / Face ID (passkeys), sin guardar la huella en el servidor.
+**Multiusuario:** cada persona se registra con email y contraseña y ve **solo sus propios datos**. Todos comparten el mismo deploy y la misma APK; la separación se hace con `usuario_id` en cada tabla. Opcionalmente se puede ingresar con huella (passkeys), sin guardar la huella en el servidor.
 
 ---
 
@@ -92,13 +92,15 @@ Cada `git push` actualiza la app automáticamente. Si cambiás `JWT_SECRET`, las
 
 La sesión queda guardada en el dispositivo 30 días. Si otra persona usa el mismo celular, debe cerrar sesión e iniciar con su cuenta.
 
-### Ingresar con huella / Face ID
+### Ingresar con huella
 
-En iPhone (PWA agregada desde Safari) y en navegadores con WebAuthn aparece **👆 Ingresar con huella** en el login. Para activarlo:
+En Android (APK), iPhone (PWA agregada desde Safari) y navegadores con WebAuthn aparece **👆 Ingresar con huella** en el login. Para activarlo:
 
 1. Entrá con tu contraseña y abrí **Perfil** → **👆 Registrar huella**.
-2. Confirmá con la huella, Face ID o el PIN del dispositivo.
-3. Desde entonces podés ingresar con **👆 Ingresar con huella**. En **Perfil** ves los dispositivos registrados y podés **Quitar** uno.
+2. Confirmá con la huella o el PIN del dispositivo.
+3. Desde entonces podés ingresar con **👆 Ingresar con huella**. En **Perfil** ves el estado **Registrado** y el botón **Quitar** para cada huella.
+
+En Android la interfaz habla solo de **Huella**: el cuadro del sistema puede pedir huella o PIN según el dispositivo.
 
 El servidor guarda solo una **clave pública**: la huella nunca sale del teléfono. Al registrar la primera huella se borra la contraseña guardada en ese dispositivo y se desmarca **Recordar contraseña**; la contraseña escrita a mano sigue funcionando como respaldo, al igual que la recuperación por email.
 
@@ -129,7 +131,7 @@ La PWA ya está preparada (`manifest.webmanifest`, `sw.js`, iconos). La forma re
 
 El workflow regenera el proyecto Android, aplica el parche de WebAuthn desde `scripts/parchear-android.js`, firma con un keystore guardado como secrets y deja el APK firmado. No hace falta JDK ni SDK en tu PC.
 
-> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v25`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
+> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v26`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
 
 ### Huella y WebAuthn en la APK
 

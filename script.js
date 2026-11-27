@@ -78,7 +78,7 @@ async function apiBlob(ruta) {
   return respuesta.blob();
 }
 
-// --- Passkeys (huella / Face ID) ---
+// --- Passkeys (huella) ---
 // El navegador hace la biometría; el servidor solo recibe una firma y guarda la clave pública.
 // Android WebView no expone PublicKeyCredential hasta que la APK nativa habilita WebAuthn,
 // así que la detección de capacidades decide sola cuándo mostrar los botones.
