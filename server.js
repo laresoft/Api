@@ -45,6 +45,21 @@ app.get('/restablecer', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// Asociación web ↔ APK para que WebView pueda usar passkeys del dominio.
+// Google y Android descargan este archivo desde el RP ID (dominio de Render).
+app.get('/.well-known/assetlinks.json', (req, res) => {
+  res.json([{
+    relation: ['delegate_permission/common.get_login_creds'],
+    target: {
+      namespace: 'android_app',
+      package_name: PAQUETE_ANDROID,
+      sha256_cert_fingerprints: HUELLAS_APK.map(bytes =>
+        bytes.toString('hex').toUpperCase().match(/.{2}/g).join(':')
+      )
+    }
+  }]);
+});
+
 // Servir el frontend (index.html, style.css, script.js) desde este mismo servidor
 app.use(express.static(__dirname));
 
@@ -78,6 +93,29 @@ const URL_APP = process.env.APP_URL || 'https://cuentas-k956.onrender.com';
 const ORIGEN_APP = new URL(URL_APP).origin;
 const RP_ID = new URL(URL_APP).hostname;
 const DURACION_CHALLENGE = 5 * 60 * 1000;
+
+// Certificado con el que se firma la APK (huella pública; no es un secreto).
+// Generada con keytool el 2026-11-27; se publica en /.well-known/assetlinks.json.
+const HUELLA_APK = process.env.APK_SHA256 ||
+  '8F:DA:6F:A3:55:09:2A:59:4F:AD:D0:22:49:FA:B5:68:27:2B:15:5B:92:05:FC:FE:DE:7B:37:B7:D6:92:91:31';
+const PAQUETE_ANDROID = 'com.cuentas.app';
+
+function bytesHuellaAPK(valor) {
+  const texto = String(valor || '').trim();
+  if (/^[0-9a-f:]+$/i.test(texto)) {
+    const hex = texto.replace(/:/g, '');
+    return /^[0-9a-f]{64}$/i.test(hex) ? Buffer.from(hex, 'hex') : null;
+  }
+  if (/^[A-Za-z0-9_-]{43}$/.test(texto)) return Buffer.from(texto, 'base64url');
+  return null;
+}
+
+const HUELLAS_APK = [HUELLA_APK].map(bytesHuellaAPK).filter(Boolean);
+// En WebView, Android no envía el origen HTTPS sino android:apk-key-hash:<sha256 base64url>.
+const ORIGENES_APP = [
+  ORIGEN_APP,
+  ...HUELLAS_APK.map(bytes => `android:apk-key-hash:${bytes.toString('base64url')}`)
+];
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
 const EMAIL_REMITENTE = process.env.EMAIL_USER || 'laresoftuy@gmail.com';
 
@@ -560,7 +598,7 @@ app.post('/api/passkey/registro/verificar', requerirAuth, async (req, res) => {
     const verificacion = await verifyRegistrationResponse({
       response: respuesta,
       expectedChallenge: reto.challenge,
-      expectedOrigin: ORIGEN_APP,
+      expectedOrigin: ORIGENES_APP,
       expectedRPID: RP_ID,
       requireUserVerification: true
     });
@@ -653,7 +691,7 @@ app.post('/api/passkey/autenticar/verificar', async (req, res) => {
     const verificacion = await verifyAuthenticationResponse({
       response: respuesta,
       expectedChallenge: reto.challenge,
-      expectedOrigin: ORIGEN_APP,
+      expectedOrigin: ORIGENES_APP,
       expectedRPID: RP_ID,
       credential: {
         id: registro.credential_id,

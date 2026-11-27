@@ -80,12 +80,10 @@ async function apiBlob(ruta) {
 
 // --- Passkeys (huella / Face ID) ---
 // El navegador hace la biometría; el servidor solo recibe una firma y guarda la clave pública.
-// En la APK actual el botón queda oculto: WebAuthn necesita configuración nativa (Fase 2).
+// Android WebView no expone PublicKeyCredential hasta que la APK nativa habilita WebAuthn,
+// así que la detección de capacidades decide sola cuándo mostrar los botones.
 
 function passkeysDisponibles() {
-  if (esWebViewAndroid()) return false;
-  if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' &&
-      window.Capacitor.isNativePlatform()) return false;
   return !!(
     window.isSecureContext && window.PublicKeyCredential &&
     navigator.credentials && navigator.credentials.create && navigator.credentials.get &&

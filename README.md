@@ -102,7 +102,7 @@ En iPhone (PWA agregada desde Safari) y en navegadores con WebAuthn aparece **�
 
 El servidor guarda solo una **clave pública**: la huella nunca sale del teléfono. Al registrar la primera huella se borra la contraseña guardada en ese dispositivo y se desmarca **Recordar contraseña**; la contraseña escrita a mano sigue funcionando como respaldo, al igual que la recuperación por email.
 
-> La **APK actual no muestra estos botones**: el WebView necesita configuración nativa (`assetlinks.json` + recompilación). Queda pendiente para cuando se pueda firmar la APK. WebAuthn exige HTTPS (o `localhost`) y que `APP_URL` sea exactamente el origen de la app.
+> En la **APK compilada con el workflow de abajo** los botones también aparecen: el WebView tiene WebAuthn habilitado y la app está asociada al dominio mediante `/.well-known/assetlinks.json`. WebAuthn exige HTTPS (o `localhost`) y que `APP_URL` sea exactamente el origen de la app. Una APK vieja (sin recompilar) seguirá usando solo contraseña.
 
 ### ¿Olvidaste la contraseña?
 
@@ -121,19 +121,19 @@ Para configurar el envío: en Brevo (https://www.brevo.com/, plan Free) ir a **S
 
 ## 5. APK para el celular (opcional)
 
-La PWA ya está preparada (`manifest.webmanifest`, `sw.js`, iconos). Con Capacitor se genera el APK:
+La PWA ya está preparada (`manifest.webmanifest`, `sw.js`, iconos). La forma recomendada de generar la APK es con **GitHub Actions**, sin instalar Android Studio:
 
-```bash
-npm install
-npx cap add android
-# editar capacitor.config.json con la URL de Render y cleartext: false
-npx cap sync
-cd android && ./gradlew assembleDebug
-```
+1. En GitHub → pestaña **Actions** → **Compilar APK de Cuentas** → **Run workflow** → **main**.
+2. Al terminar, descargar el artefacto **`cuentas-apk`** y descomprimirlo.
+3. Instalar `app-release.apk` en el celular (habilitar “instalar apps desconocidas”).
 
-El APK queda en `android/app/build/outputs/apk/debug/app-debug.apk`. Requiere JDK 21 y Android SDK instalados.
+El workflow regenera el proyecto Android, aplica el parche de WebAuthn desde `scripts/parchear-android.js`, firma con un keystore guardado como secrets y deja el APK firmado. No hace falta JDK ni SDK en tu PC.
 
-> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v19`, definido en `sw.js`).
+> Como la APK solo muestra la página de Render, **no hay que recompilarla** al cambiar la interfaz o agregar usuarios. El service worker se actualiza solo (cache actual: `cuentas-v20`, definido en `sw.js`). Solo volvé a compilar si cambia `capacitor.config.json`, el parche nativo o las dependencias.
+
+### Huella y WebAuthn en la APK
+
+El servidor publica la asociación en `https://cuentas-k956.onrender.com/.well-known/assetlinks.json` con la huella SHA-256 del certificado con que se firma la APK (`com.cuentas.app`). Ese valor es público; la clave privada del keystore vive solo en los Secrets de GitHub (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`). Si se regenera el keystore, hay que actualizar `HUELLA_APK` en `server.js` y volver a compilar.
 
 ### Reportes PDF en la APK
 El WebView de Android no permite descargas con `<a download>` ni `window.print()`. Por eso, dentro de la APK el botón dice **📧 Enviar PDF** y manda el archivo adjunto al correo de la cuenta (Brevo). En Safari/Chrome el botón descarga el PDF directamente.
@@ -152,7 +152,7 @@ El `script.js` detecta `Capacitor.Plugins.Filesystem` y `Capacitor.Plugins.Share
 
 ## Limitaciones del plan gratuito
 
-- **Requisitos de passkeys:** Node 22 en el servidor, HTTPS (o `localhost`) y `APP_URL` igual al origen real. Si se cambiara el dominio de Render, habría que registrar las huellas de nuevo.
+- **Requisitos de passkeys:** Node 22 en el servidor, HTTPS (o `localhost`), `APP_URL` igual al origen real y `assetlinks.json` accesible sin redirecciones. Si cambiara el dominio de Render o el certificado de la APK, habría que registrar las huellas de nuevo.
 - **Render Free** se duerme tras 15 minutos sin visitas; la primera carga después de eso tarda ~1 minuto.
 - **Supabase Free** pausa el proyecto tras 7 días con poca actividad. `GET /api/heartbeat` mantiene una escritura mínima (configuralo en cron-job.org cada 12 h con alerta por email). Si igual se pausa, se reactiva desde el dashboard y los datos se conservan.
 - Supabase Free **no incluye backups automáticos**. Si los datos te importan, exportalos de vez en cuando desde el dashboard.
@@ -190,3 +190,4 @@ Las rutas marcadas con 🔒 requieren la cabecera `Authorization: Bearer <token>
 | `DELETE` | `/ingresos/:id` | 🔒 Eliminar ingreso propio |
 | `GET` | `/balance?mes=YYYY-MM` | 🔒 Ingresos, gastos y balance del mes del usuario |
 | `GET` | `/api/heartbeat` | Latido antipausa de Supabase Free (actualiza una fila, sin datos personales) |
+| `GET` | `/.well-known/assetlinks.json` | Asociación del dominio con la APK (passkeys en WebView) |
